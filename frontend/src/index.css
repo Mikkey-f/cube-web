@@ -368,6 +368,8 @@ a {
   letter-spacing: 3px;
   opacity: 0.75;
   animation: floatY 2.4s ease-in-out infinite;
+  /* 纯装饰指示器，别挡住立方体底部的拖拽 */
+  pointer-events: none;
 }
 
 @keyframes floatY {
@@ -850,6 +852,14 @@ table.data-table {
   width: 100%;
   padding-top: 88px;
   margin-left: max(24px, calc((100vw - 1120px) / 2));
+  /* 容器是 100% 宽的无形盒子，会盖住右侧立方体画布截胡拖拽事件，
+     所以整体穿透，只在链接/按钮上恢复交互 */
+  pointer-events: none;
+}
+
+.hero-copy-wrap a,
+.hero-copy-wrap button {
+  pointer-events: auto;
 }
 
 .hero-copy {
