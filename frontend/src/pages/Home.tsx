@@ -55,8 +55,8 @@ interface Direction {
   desc: string
   tags: string[]
   art: ArtKind
-  /** 6 栏网格里占几栏，做出 bento 的疏密节奏 */
-  span: 4 | 2
+  /** 6 栏网格里占几栏 */
+  span: 2 | 3 | 4
 }
 
 const DIRECTIONS: Direction[] = [
@@ -65,28 +65,28 @@ const DIRECTIONS: Direction[] = [
     desc: 'C 语言速通、Python 必学，每天一道算法题保持手感——地基打得牢，后面才走得快。',
     tags: ['C/C++', 'Python', '数据结构与算法'],
     art: 'infra',
-    span: 4
+    span: 3
   },
   {
     title: '后端与系统',
     desc: '就业市场的主流路线。Java、C++、Go 任选一门深入，再配 CSAPP、CS144 这样的硬课打通系统。',
     tags: ['Java', 'C++', 'Go'],
     art: 'backend',
-    span: 2
+    span: 3
   },
   {
     title: '人工智能',
     desc: '从 Python 打底到 CS224n 深入，再把 AI Agent 当成日常工具：读代码、查文档、写脚本、排错。',
     tags: ['Python', 'CS224n', 'Agent'],
     art: 'ai',
-    span: 4
+    span: 3
   },
   {
     title: '开源与履历',
     desc: '学会 Git 协作，一切进 GitHub 仓库——让每一分努力都沉淀成看得见的履历。',
     tags: ['Git', 'GitHub', '学习档案'],
     art: 'oss',
-    span: 2
+    span: 3
   }
 ]
 

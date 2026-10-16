@@ -1441,6 +1441,7 @@ table.data-table {
 
 .bento > div { display: flex; }
 .bento > .span4 { grid-column: span 4; }
+.bento > .span3 { grid-column: span 3; }
 .bento > .span2 { grid-column: span 2; }
 
 .bcell-art {
@@ -1998,6 +1999,7 @@ table.data-table {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .bento > .span4,
+  .bento > .span3,
   .bento > .span2 {
     grid-column: auto;
   }
