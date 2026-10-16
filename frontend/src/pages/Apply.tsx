@@ -98,7 +98,7 @@ export default function Apply() {
     <div className="form-page">
       <div className="form-card wide">
         <h2>招新 <span className="title-glow">报名</span></h2>
-        <p className="form-sub">每个账号限提交一次，请认真填写</p>
+        <p className="form-sub">招新对象：计算机类相关专业大一新生，零基础即可报名。每个账号限提交一次，请认真填写</p>
         {error && <div className="form-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="field">
