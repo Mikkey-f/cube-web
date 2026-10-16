@@ -150,10 +150,11 @@ a {
   left: 0;
   right: 0;
   z-index: 100;
-  /* 常驻导航栏：blur 半径减半 + 加深底色，滚动时省一半合成开销 */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(8, 9, 10, 0.82);
+  /* 毛玻璃：更大模糊 + 提饱和，底色更透，下层内容透过来更「润」；
+     saturate 是玻璃质感的关键，只 blur 会显得灰蒙 */
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  background: rgba(8, 9, 10, 0.72);
   border-bottom: 1px solid var(--hairline);
 }
 
