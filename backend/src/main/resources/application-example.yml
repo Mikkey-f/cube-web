@@ -1,0 +1,42 @@
+# ============================================================
+# 配置模板 —— 复制为 application.yml 后再改
+#
+#   PowerShell:  Copy-Item application-example.yml application.yml
+#
+# application.yml 已被 .gitignore 排除，真实密钥不会进入仓库。
+# ============================================================
+server:
+  port: 8080
+
+spring:
+  datasource:
+    # 开发期用 H2 文件库，零安装。上线切 MySQL 只需改这里 + 引入驱动
+    url: jdbc:h2:file:./data/cube-db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  servlet:
+    multipart:
+      # 简历 PDF 上传上限
+      max-file-size: 20MB
+      max-request-size: 20MB
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 3600
+
+app:
+  # ⚠️ 上线前必须替换：至少 64 位随机字符串（HS256 要求密钥够长，否则启动直接报 WeakKeyException）
+  #    生成示例：openssl rand -base64 64
+  jwt-secret: CHANGE_ME_TO_A_LONG_RANDOM_SECRET_AT_LEAST_64_CHARS_0123456789abcdef
+  jwt-expiration-ms: 86400000
+  upload-dir: ./uploads
+  admin:
+    # ⚠️ 首次启动会自动创建该管理员账号，上线前务必改掉
+    username: admin
+    password: CHANGE_ME_ADMIN_PASSWORD

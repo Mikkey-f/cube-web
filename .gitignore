@@ -1,0 +1,67 @@
+# ============================================================
+# CUBE 实验室官网 —— 请勿删除本文件
+# 原则：运行时数据、密钥、个人隐私、构建产物一律不入库
+# ============================================================
+
+# ---------- 系统 / 编辑器 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+# ---------- Node / Vite ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+frontend/vite.config.ts.timestamp-*.mjs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Java / Maven ----------
+target/
+*.class
+*.jar
+*.war
+
+# ---------- 运行时数据（含个人隐私，绝对不入库）----------
+# H2 文件数据库：用户账号 + 全部投递记录
+backend/data/
+*.mv.db
+*.trace.db
+*.lock.db
+# 简历 PDF 落盘目录（UUID 命名，含真实姓名/学号/联系方式）
+backend/uploads/
+# 手工上传测试用的散装 PDF
+backend/*.pdf
+
+# ---------- 密钥与本地配置 ----------
+# 真实配置含 jwt-secret 与管理员密码，仓库里只保留 application-example.yml
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-prod.yml
+!backend/src/main/resources/application-example.yml
+.env
+.env.*
+!.env.example
+
+# ---------- 临时 / 调试残留 ----------
+*.log
+*.tmp
+.admin.json
+.register.json
+_status.txt
+_probe*.html
+
+# ---------- AI 工作目录（记忆、备份、参考克隆）----------
+.workbuddy/
+
+# ---------- 截图草稿 ----------
+shots/
