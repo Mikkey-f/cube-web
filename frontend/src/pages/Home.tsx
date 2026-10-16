@@ -259,6 +259,12 @@ function StackCard({
     let relTop = 0
     let cardH = 0
     let marginBottom = 26
+    // 滚动期间不变的几何量全部缓存：容器文档级 top、卡片高度、视口高度。
+    // 之前在每次 scroll 事件里读 getBoundingClientRect/offsetHeight，
+    // 会强制同步布局（layout thrashing），是滚动掉帧的主要来源。
+    let containerDocTop = 0
+    let containerH = 0
+    let winH = window.innerHeight
     const measure = () => {
       const card = cardRef.current
       const el = container.current
@@ -266,24 +272,28 @@ function StackCard({
       stuckTop = parseFloat(getComputedStyle(card).top) || 96
       stuckNext = stuckTop + 16
       marginBottom = parseFloat(getComputedStyle(card).marginBottom) || 26
-      relTop = card.getBoundingClientRect().top - el.getBoundingClientRect().top
+      const cardRect = card.getBoundingClientRect()
+      const elRect = el.getBoundingClientRect()
+      relTop = cardRect.top - elRect.top
       cardH = card.offsetHeight
+      containerDocTop = elRect.top + window.scrollY
+      containerH = el.offsetHeight
+      winH = window.innerHeight
     }
     measure()
     const apply = (v: number) => {
       const el = container.current
       const card = cardRef.current
       if (!el || !card) return
-      const top = el.getBoundingClientRect().top + window.scrollY
       let dimTarget = 1
       if (i < total - 1) {
-        const nextDocTop = top + relTop + cardH + marginBottom
-        const enter = nextDocTop - window.innerHeight
+        const nextDocTop = containerDocTop + relTop + cardH + marginBottom
+        const enter = nextDocTop - winH
         const arrive = nextDocTop - stuckNext
         dimTarget = 1 - 0.5 * clamp01((v - enter) / Math.max(1, arrive - enter))
       }
       // 退场淡出贴着真实释放点（容器底边碰到卡片下边缘），静止时保持可读
-      const releaseV = top + el.offsetHeight - (stuckTop + cardH + marginBottom)
+      const releaseV = containerDocTop + containerH - (stuckTop + cardH + marginBottom)
       const fadeStart = releaseV - 80
       const fadeEnd = releaseV + cardH * 0.35
       const exit = clamp01((v - fadeStart) / (fadeEnd - fadeStart))
@@ -291,7 +301,16 @@ function StackCard({
       scale.set(1 - 0.06 * (1 - dimTarget))
     }
     apply(window.scrollY)
-    const onScroll = () => apply(window.scrollY)
+    // rAF 节流：滚动事件可能高于帧率（高刷鼠标滚轮），合并到每帧最多一次
+    let ticking = false
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        ticking = false
+        apply(window.scrollY)
+      })
+    }
     const onResize = () => {
       measure()
       apply(window.scrollY)

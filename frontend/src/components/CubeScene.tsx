@@ -294,11 +294,18 @@ export default function CubeScene() {
     }
     window.addEventListener('resize', onResize)
 
+    // 滚出视口后暂停 WebGL 渲染：hero 滚走后立方体已淡出到 0.05，
+    // 继续全帧渲染只会白占 GPU、拖累整页滚动帧率
+    let inView = true
+    const io = new IntersectionObserver(([entry]) => { inView = entry.isIntersecting }, { threshold: 0 })
+    io.observe(mount)
+
     // ---------- 动画 ----------
     const clock = new THREE.Clock()
     let raf = 0
     const animate = () => {
       raf = requestAnimationFrame(animate)
+      if (!inView) return // 画布滚出视口：跳过所有更新与渲染
       const dt = Math.min(clock.getDelta(), 0.05)
       const t = clock.getElapsedTime()
       hoverBoost += ((dragging ? 1 : hoverBoost > 0.5 ? 1 : 0) - hoverBoost) * 0.08
@@ -382,6 +389,7 @@ export default function CubeScene() {
 
     return () => {
       cancelAnimationFrame(raf)
+      io.disconnect()
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('resize', onResize)
       canvas.removeEventListener('pointerdown', onPointerDown)
