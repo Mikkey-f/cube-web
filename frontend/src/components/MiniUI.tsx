@@ -151,37 +151,37 @@ function PanelBar({ title }: { title: string }) {
   )
 }
 
-/* 需求面板：像一张真实的需求卡 */
+/* 培养计划面板：像一份真实的阶段计划卡 */
 function SpecPanel() {
   return (
     <div className="panel-ui">
-      <PanelBar title="issue · #12" />
+      <PanelBar title="plan · 大一上" />
       <div className="panel-body">
         <div className="spec-head">
-          <span className="spec-tag">需求</span>
-          <b>校园门户重构</b>
+          <span className="spec-tag">培养计划</span>
+          <b>打地基 · 养成习惯</b>
         </div>
-        <p className="spec-desc">把旧的静态页面换成可维护的前后端分离结构，先做报名入口。</p>
+        <p className="spec-desc">不追求学得多，追求每周都在动。</p>
         <ul className="spec-list">
-          <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d={CHECK} /></svg>明确验收标准</li>
-          <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d={CHECK} /></svg>拆成可并行的子任务</li>
-          <li className="todo"><span className="dot" />接口先对齐，再动手写界面</li>
+          <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d={CHECK} /></svg>C 语言速通</li>
+          <li><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><path d={CHECK} /></svg>每天一道算法题</li>
+          <li className="todo"><span className="dot" />Python 起步 · Git 建档</li>
         </ul>
       </div>
     </div>
   )
 }
 
-/* 例会面板：一份议程 */
+/* 周会面板：一份议程 */
 function AgendaPanel() {
   const rows = [
-    ['20:00', '上周进度同步'],
-    ['20:20', 'React 并发渲染 — 分享'],
-    ['20:50', '卡住的问题，现场拆']
+    ['20:00', '本周学了什么'],
+    ['20:20', '任务完成情况'],
+    ['20:50', '问题 · 下周计划']
   ]
   return (
     <div className="panel-ui">
-      <PanelBar title="weekly · 例会" />
+      <PanelBar title="weekly · 周会" />
       <div className="panel-body">
         {rows.map(([t, s], i) => (
           <div className="agenda-row" key={t}>
@@ -191,25 +191,25 @@ function AgendaPanel() {
           </div>
         ))}
         <div className="agenda-foot">
-          <span className="live" />本周第 14 次 · 全员
+          <span className="live" />线下 · 每周一次
         </div>
       </div>
     </div>
   )
 }
 
-/* Review 面板：一段 diff + 一条评论 */
+/* GitHub 档案面板：提交记录 + 月度考核批注 */
 function ReviewPanel() {
   const lines = [
-    { t: 'ctx', s: 'async function load(id) {' },
-    { t: 'del', s: '-  const res = await fetch(url)' },
-    { t: 'add', s: '+  const res = await api.get(`/items/${id}`)' },
-    { t: 'ctx', s: '   return res.data' },
-    { t: 'ctx', s: '}' }
+    { t: 'ctx', s: 'a3f2e1c  题解 · 两数之和' },
+    { t: 'add', s: '+ 8d91b07  笔记 · 指针与内存' },
+    { t: 'add', s: '+ 5c44af9  project · 贪吃蛇 v0.2' },
+    { t: 'ctx', s: '2b90e14  fix · 修复输入死循环' },
+    { t: 'ctx', s: 'f1a0c93  docs · 本周学习总结' }
   ]
   return (
     <div className="panel-ui">
-      <PanelBar title="pull request · #48" />
+      <PanelBar title="github · 学习档案" />
       <div className="panel-body">
         <pre className="diff">
           {lines.map((l, i) => (
@@ -218,7 +218,7 @@ function ReviewPanel() {
         </pre>
         <div className="review-note">
           <span className="review-av" />
-          <p>这里统一走 <code>api</code> 实例，鉴权头就自动带上了 —— 已合并。</p>
+          <p>月度考核：<b>正常推进</b> —— 组长批注：保持节奏，稳定成长。</p>
         </div>
       </div>
     </div>
