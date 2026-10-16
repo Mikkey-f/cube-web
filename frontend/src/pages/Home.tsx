@@ -252,6 +252,7 @@ function StackCard({
 }) {
   const start = i / total
   const end = (i + 1) / total
+  const cardRef = useRef<HTMLDivElement>(null)
   const scale = useMotionValue(1)
   const dim = useMotionValue(1)
 
@@ -259,25 +260,47 @@ function StackCard({
   // 刻意不用 target 版 useScroll：实测在含 sticky 子元素的容器上拿不到进度。
   useEffect(() => {
     if (reduce) return
+    // 每张卡 sticky 停靠位置不同（96/112/128px），释放时机依次错开；
+    // 淡出距离按卡高取值，让卡片在被推出屏幕前先平滑消失。
+    let stuckTop = 96
+    let exitSpan = 280
+    const measure = () => {
+      const card = cardRef.current
+      if (!card) return
+      stuckTop = parseFloat(getComputedStyle(card).top) || 96
+      exitSpan = Math.min(340, Math.max(200, card.offsetHeight * 0.6))
+    }
+    measure()
     const apply = (v: number) => {
       const el = container.current
-      const p = stackProgress(el, v)
+      const card = cardRef.current
+      if (!el || !card) return
+      const top = el.getBoundingClientRect().top + window.scrollY
+      const range = Math.max(1, el.offsetHeight - window.innerHeight)
+      const p = clamp01((v - top) / range)
       const t = clamp01((p - start) / (end - start))
       scale.set(1 - 0.06 * t)
-      dim.set(1 - 0.5 * t)
+      // sticky 释放（卡片被推出屏幕）前先淡出到 0，消除快速滚动时的闪没感
+      const releaseV = top + el.offsetHeight - (stuckTop + card.offsetHeight)
+      const exit = clamp01((v - (releaseV - exitSpan)) / exitSpan)
+      dim.set((1 - 0.5 * t) * (1 - exit))
     }
     apply(window.scrollY)
     const onScroll = () => apply(window.scrollY)
+    const onResize = () => {
+      measure()
+      apply(window.scrollY)
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
+    window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      window.removeEventListener('resize', onResize)
     }
   }, [reduce, container, start, end, scale, dim, i])
 
   return (
-    <motion.div className="stack-block" style={reduce ? undefined : { scale, opacity: dim }}>
+    <motion.div ref={cardRef} className="stack-block" style={reduce ? undefined : { scale, opacity: dim }}>
       <div>
         <span className="stack-idx">{`Step 0${i + 1}`}</span>
         <h3>{step.title}</h3>
