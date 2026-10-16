@@ -32,10 +32,10 @@ function buildEnvScene() {
     m.rotation.set(rx, ry, 0)
     env.add(m)
   }
-  bar(5, 6, 8, 7, 2, 0, 5, 0, Math.PI / 2, 0)      // 顶部冷白长条（主高光）
-  bar(0.4, 3, 4, 6, 2.5, -5, 1, 0, 0, Math.PI / 2)  // 左侧青色灯带
-  bar(2.2, 1, 5, 6, 2.5, 5, -0.5, 0, 0, -Math.PI / 2) // 右侧蓝紫灯带
-  bar(0.25, 0.55, 1.3, 9, 4, 0, 0, 6, 0, Math.PI)   // 正面弱蓝补光
+  bar(4, 5, 6.5, 7, 2, 0, 5, 0, Math.PI / 2, 0)      // 顶部冷白长条（主高光）
+  bar(0.3, 1.8, 2.4, 6, 2.5, -5, 1, 0, 0, Math.PI / 2)  // 左侧青色灯带（压柔，避免整面染色）
+  bar(1.3, 0.6, 3, 6, 2.5, 5, -0.5, 0, 0, -Math.PI / 2) // 右侧蓝紫灯带（压柔）
+  bar(0.2, 0.45, 1, 9, 4, 0, 0, 6, 0, Math.PI)   // 正面弱蓝补光
   return env
 }
 
@@ -101,21 +101,21 @@ export default function CubeScene() {
     group.position.y = BASE_Y
 
     // 真实玻璃外壳：transmission 折射 + clearcoat 清漆层 + 边缘染色 + 彩虹薄膜。
-    // 不透明内核会被折射捕获，透过玻璃能看到扭曲发光的内核。
+    // 厚度压到 0.5：折射只保留轻微扭曲感，避免相邻面采样错位过大。
     const glassMat = new THREE.MeshPhysicalMaterial({
       color: 0xeaf4ff,
       metalness: 0,
       roughness: 0.08,
       transmission: 1,
-      thickness: 1.6,
+      thickness: 0.5,
       ior: 1.48,
       attenuationColor: new THREE.Color(0x5ea0ff),
-      attenuationDistance: 2.6,
+      attenuationDistance: 3.0,
       clearcoat: 0.7,
       clearcoatRoughness: 0.15,
       iridescence: 0.2,
       iridescenceIOR: 1.32,
-      envMapIntensity: 0.9,
+      envMapIntensity: 0.7,
       specularIntensity: 0.9
     })
     group.add(new THREE.Mesh(outerGeo, glassMat))
@@ -132,21 +132,22 @@ export default function CubeScene() {
     group.add(new THREE.Points(vertexGeo, vertexMat))
 
     // 三层嵌套发光内核：大→小逐层反向旋转。
-    // 内两层必须不透明，才会出现在玻璃的折射缓冲里（透过外壳可见）；
-    // 呼吸效果从调透明度改为调颜色亮度。
+    // 全部保持透明渲染、不进玻璃的折射缓冲：折射缓冲会让每个面各自采样内核，
+    // 棱角视角下同一内核在两个面上错位成「两个方块」。透明渲染只画一次，
+    // 任何角度看都严格在同一个 3D 位置，与玻璃面自然叠合。
     const innerRoot = new THREE.Group()
     group.add(innerRoot)
-    const innerLayers: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; baseColor: THREE.Color }[] = []
+    const innerLayers: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }[] = []
     const innerSpecs = [
-      { size: 0.95, color: 0x3f8fe0, opacity: 0.16, transparent: true },
-      { size: 0.72, color: 0x8cc8ff, opacity: 1, transparent: false },
-      { size: 0.46, color: 0xe8f4ff, opacity: 1, transparent: false }
+      { size: 0.95, color: 0x3f8fe0, opacity: 0.16 },
+      { size: 0.72, color: 0x8cc8ff, opacity: 0.95 },
+      { size: 0.46, color: 0xe8f4ff, opacity: 0.98 }
     ]
     for (const spec of innerSpecs) {
       const geo = new THREE.BoxGeometry(spec.size, spec.size, spec.size)
       const mat = new THREE.MeshBasicMaterial({
         color: spec.color,
-        transparent: spec.transparent,
+        transparent: true,
         opacity: spec.opacity
       })
       const mesh = new THREE.Mesh(geo, mat)
@@ -155,7 +156,7 @@ export default function CubeScene() {
         new THREE.LineBasicMaterial({ color: 0xcfe4ff, transparent: true, opacity: 0.85 })
       ))
       innerRoot.add(mesh)
-      innerLayers.push({ mesh, mat, baseColor: new THREE.Color(spec.color) })
+      innerLayers.push({ mesh, mat })
       // 最外层那档尺寸偏大，作为光晕壳，不参与 edges 描述的硬线条
       if (spec.size > 0.8) mesh.children[0].visible = false
     }
@@ -359,16 +360,14 @@ export default function CubeScene() {
       const pulse = 0.86 + Math.sin(t * 2.2) * 0.14
       innerLayers.forEach((l, idx) => {
         if (idx === 0) return
-        // 不透明内核：用颜色亮度做呼吸（透明度固定为 1，保证折射可见）。
-        // 亮度峰值超过泛光阈值，让内核真正「发光」而不是两张贴纸
-        const brightness = (0.95 + pulse * 0.4) * boost
-        l.mat.color.copy(l.baseColor).multiplyScalar(Math.min(brightness, 1.6))
+        // 透明内核：透明度做呼吸，底色足够亮，峰值照样触发泛光
+        l.mat.opacity = (idx === 1 ? 0.9 : 0.96) * (0.85 + pulse * 0.15) * boost
       })
       edgeMat.opacity = (0.75 + Math.sin(t * 1.9) * 0.1 + hoverBoost * 0.25) * boost
       vertexMat.size = 0.11 * (1 + Math.sin(t * 2.6) * 0.22)
       vertexMat.opacity = Math.min(1, (0.8 + Math.sin(t * 2.6) * 0.15) * boost)
       // 拖拽/悬停时玻璃反射更亮一点
-      glassMat.envMapIntensity = 0.9 * boost
+      glassMat.envMapIntensity = 0.7 * boost
 
       // 环绕小球
       const a = t * 0.85
