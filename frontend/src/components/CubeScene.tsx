@@ -4,19 +4,40 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 /**
  * CUBE 立方体 3D 场景
- * 真实玻璃外壳（PBR 折射 + 清漆 + 环境反射 + 彩虹薄膜）
+ * 真实玻璃外壳（PBR 折射 + 清漆 + 自定义蓝紫灯带环境反射 + 彩虹薄膜）
  * + 三层嵌套发光内核 + 倾斜轨道环 + 环绕小球 + 泛光后期
  *
  * 交互：
- * - 按住拖拽自由旋转（双轴任意翻转，带惯性），触屏可用
- * - 松手后惯性衰减，俯仰角缓慢回归基础角度，水平方向接管回自转
- * - 未拖拽时保留鼠标视差；悬停/拖拽时转速、亮度、相机距离轻微加成
+ * - 轨迹球式拖拽旋转：绕「垂直于拖动方向的屏幕轴」旋转，任意姿态下手感一致
+ * - 松手后惯性衰减，自转绕立方体自身竖轴继续（翻转后姿态保持，不强制回正）
+ * - 拖拽时锁定鼠标视差避免画面晃动；悬停/拖拽时转速、亮度、相机距离轻微加成
  */
 const PAGE_BG = 0x08090a
+
+/** 自定义反射环境：深色底 + 几条 HDR 彩色灯带。
+ *  比 RoomEnvironment 的灰白灯板更有「手机玻璃/车漆」的高级反射感。 */
+function buildEnvScene() {
+  const env = new THREE.Scene()
+  env.background = new THREE.Color(0x04060a)
+  const bar = (r: number, g: number, b: number, w: number, h: number,
+    px: number, py: number, pz: number, rx: number, ry: number) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b), side: THREE.DoubleSide })
+    )
+    m.position.set(px, py, pz)
+    m.rotation.set(rx, ry, 0)
+    env.add(m)
+  }
+  bar(5, 6, 8, 7, 2, 0, 5, 0, Math.PI / 2, 0)      // 顶部冷白长条（主高光）
+  bar(0.4, 3, 4, 6, 2.5, -5, 1, 0, 0, Math.PI / 2)  // 左侧青色灯带
+  bar(2.2, 1, 5, 6, 2.5, 5, -0.5, 0, 0, -Math.PI / 2) // 右侧蓝紫灯带
+  bar(0.25, 0.55, 1.3, 9, 4, 0, 0, 6, 0, Math.PI)   // 正面弱蓝补光
+  return env
+}
 
 export default function CubeScene() {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -45,10 +66,10 @@ export default function CubeScene() {
     renderer.toneMappingExposure = 1.15
     mount.appendChild(renderer.domElement)
 
-    // 环境反射贴图：RoomEnvironment 经 PMREM 预滤波，
-    // 给玻璃外壳提供真实的高光条和反射层次（无需外部 HDR 资源）
+    // 环境反射贴图：自定义蓝紫灯带场景经 PMREM 预滤波，
+    // 给玻璃外壳提供彩色高光条而非灰白板反射
     const pmrem = new THREE.PMREMGenerator(renderer)
-    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    const envTex = pmrem.fromScene(buildEnvScene(), 0.06).texture
     scene.environment = envTex
 
     // 拖拽只在画布上生效，并加抓手光标；禁用文本选择，避免拖拽变成选中文字
@@ -82,20 +103,20 @@ export default function CubeScene() {
     // 真实玻璃外壳：transmission 折射 + clearcoat 清漆层 + 边缘染色 + 彩虹薄膜。
     // 不透明内核会被折射捕获，透过玻璃能看到扭曲发光的内核。
     const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xd8ecff,
+      color: 0xeaf4ff,
       metalness: 0,
-      roughness: 0.05,
+      roughness: 0.08,
       transmission: 1,
       thickness: 1.6,
       ior: 1.48,
-      attenuationColor: new THREE.Color(0x7fb8ff),
-      attenuationDistance: 3.2,
-      clearcoat: 1,
-      clearcoatRoughness: 0.08,
-      iridescence: 0.28,
+      attenuationColor: new THREE.Color(0x5ea0ff),
+      attenuationDistance: 2.6,
+      clearcoat: 0.7,
+      clearcoatRoughness: 0.15,
+      iridescence: 0.2,
       iridescenceIOR: 1.32,
-      envMapIntensity: 1.5,
-      specularIntensity: 1
+      envMapIntensity: 0.9,
+      specularIntensity: 0.9
     })
     group.add(new THREE.Mesh(outerGeo, glassMat))
 
@@ -197,15 +218,22 @@ export default function CubeScene() {
     composer.addPass(new OutputPass())
 
     // ---------- 交互状态 ----------
-    // 自由双轴旋转：rotY 无限累积（自转叠加在其上），rotX 松手后缓慢回归基础俯仰
+    // 轨迹球式旋转：姿态用四元数维护，拖拽绕「垂直于拖动方向的屏幕轴」旋转，
+    // 无论立方体翻到什么姿态，拖拽方向都符合直觉（固定轴欧拉角翻转后会反向）
     let dragging = false
     let lastX = 0
     let lastY = 0
-    let velY = 0              // 绕 Y 惯性角速度（每帧增量，弧度）
-    let velX = 0              // 绕 X 惯性角速度
-    let rotY = 0              // 当前水平角
-    let rotX = 0.18           // 当前俯仰角
-    let hoverBoost = 0        // 悬停加成（转速/亮度），缓动
+    let pendDX = 0              // 本帧累积的拖拽像素（x）
+    let pendDY = 0
+    let velSX = 0               // 屏幕空间惯性速度（弧度/帧，EMA 平滑）
+    let velSY = 0
+    let hoverBoost = 0          // 悬停加成（转速/亮度），缓动
+    const userQuat = new THREE.Quaternion() // 用户姿态（含自转）
+    const floatQuat = new THREE.Quaternion() // 展示用俯仰微摆动（不污染用户姿态）
+    const tmpQ = new THREE.Quaternion()
+    const tmpAxis = new THREE.Vector3()
+    const LOCAL_Y = new THREE.Vector3(0, 1, 0)
+    const tmpEuler = new THREE.Euler()
 
     // 未拖拽时：挂在 window 上的视差（保留原行为）
     let mouseX = 0
@@ -221,8 +249,10 @@ export default function CubeScene() {
       dragging = true
       lastX = e.clientX
       lastY = e.clientY
-      velY = 0
-      velX = 0
+      pendDX = 0
+      pendDY = 0
+      velSX = 0
+      velSY = 0
       canvas.setPointerCapture(e.pointerId)
       canvas.style.cursor = 'grabbing'
     }
@@ -232,12 +262,12 @@ export default function CubeScene() {
       const dy = e.clientY - lastY
       lastX = e.clientX
       lastY = e.clientY
-      // 像素 → 弧度：拖过整个容器约转 290°
+      pendDX += dx
+      pendDY += dy
+      // 像素 → 弧度：拖过整个容器约转 290°；EMA 平滑惯性采样，防抖
       const k = (Math.PI * 1.6) / Math.max(1, canvas.clientWidth)
-      velY = dx * k
-      velX = dy * k
-      rotY += velY
-      rotX += velX // 不钳制：允许任意翻转
+      velSX = velSX * 0.55 + dx * k * 0.45
+      velSY = velSY * 0.55 + dy * k * 0.45
     }
     const onPointerUp = (e: PointerEvent) => {
       if (!dragging) return
@@ -273,21 +303,36 @@ export default function CubeScene() {
       const t = clock.getElapsedTime()
       hoverBoost += ((dragging ? 1 : hoverBoost > 0.5 ? 1 : 0) - hoverBoost) * 0.08
 
-      // 旋转：拖拽时由手势直接驱动；松手后惯性指数衰减，
-      // 水平方向平滑接管回自转，俯仰角沿最短路径缓慢回归基础角度
-      if (!dragging) {
-        rotY += (0.32 + hoverBoost * 0.25) * dt + velY
-        rotX += velX
-        velY *= Math.pow(0.02, dt)
-        velX *= Math.pow(0.02, dt)
-        let diff = (0.18 - rotX) % (Math.PI * 2)
-        if (diff > Math.PI) diff -= Math.PI * 2
-        if (diff < -Math.PI) diff += Math.PI * 2
-        rotX += diff * (1 - Math.pow(0.05, dt)) // 很慢的弹簧，翻过的面会停留一会儿
+      // 轨迹球旋转：
+      // - 拖拽中：把本帧累积像素转成「屏幕轴 → 世界轴」的旋转，premultiply 到用户姿态
+      // - 松手后：沿松手方向的惯性指数衰减 + 绕自身竖轴的自转
+      if (dragging) {
+        const angle = Math.hypot(pendDX, pendDY) * (Math.PI * 1.6) / Math.max(1, canvas.clientWidth)
+        if (angle > 1e-6) {
+          tmpAxis.set(pendDY, pendDX, 0).normalize().applyQuaternion(camera.quaternion)
+          tmpQ.setFromAxisAngle(tmpAxis, angle)
+          userQuat.premultiply(tmpQ)
+        }
+        pendDX = 0
+        pendDY = 0
+      } else {
+        const ia = Math.hypot(velSX, velSY)
+        if (ia > 1e-5) {
+          tmpAxis.set(velSY, velSX, 0).normalize().applyQuaternion(camera.quaternion)
+          tmpQ.setFromAxisAngle(tmpAxis, ia)
+          userQuat.premultiply(tmpQ)
+          const decay = Math.pow(0.02, dt)
+          velSX *= decay
+          velSY *= decay
+        }
+        // 自转：绕立方体自身竖轴，翻转后姿态保持、自转轴跟着走（拿在手里的直觉）
+        tmpQ.setFromAxisAngle(LOCAL_Y, (0.32 + hoverBoost * 0.25) * dt)
+        userQuat.multiply(tmpQ)
       }
-      group.rotation.y = rotY
-      const floatX = Math.sin(t * 0.5) * 0.12
-      group.rotation.x = rotX + floatX
+      // 展示用俯仰微摆动叠加在最外层，不影响用户姿态
+      const floatX = Math.sin(t * 0.5) * 0.12 + 0.18
+      floatQuat.setFromEuler(tmpEuler.set(floatX, 0, 0))
+      group.quaternion.copy(floatQuat).multiply(userQuat)
 
       // 内核：三层反向旋转，最内层最快
       innerLayers.forEach((l, idx) => {
@@ -307,24 +352,27 @@ export default function CubeScene() {
       const pulse = 0.86 + Math.sin(t * 2.2) * 0.14
       innerLayers.forEach((l, idx) => {
         if (idx === 0) return
-        // 不透明内核：用颜色亮度做呼吸（透明度固定为 1，保证折射可见）
-        const brightness = (idx === 1 ? 0.9 : 0.96) * (0.85 + pulse * 0.15) * boost
+        // 不透明内核：用颜色亮度做呼吸（透明度固定为 1，保证折射可见）。
+        // 亮度峰值超过泛光阈值，让内核真正「发光」而不是两张贴纸
+        const brightness = (0.95 + pulse * 0.4) * boost
         l.mat.color.copy(l.baseColor).multiplyScalar(Math.min(brightness, 1.6))
       })
       edgeMat.opacity = (0.75 + Math.sin(t * 1.9) * 0.1 + hoverBoost * 0.25) * boost
       vertexMat.size = 0.11 * (1 + Math.sin(t * 2.6) * 0.22)
       vertexMat.opacity = Math.min(1, (0.8 + Math.sin(t * 2.6) * 0.15) * boost)
       // 拖拽/悬停时玻璃反射更亮一点
-      glassMat.envMapIntensity = 1.5 * boost
+      glassMat.envMapIntensity = 0.9 * boost
 
       // 环绕小球
       const a = t * 0.85
       orbiter.position.set(Math.cos(a) * RING_R, Math.sin(a) * RING_R, 0)
 
-      // 鼠标视差（缓动跟随）；拖拽时相机拉近一点，增加「抓在手里」的临场感
+      // 鼠标视差（缓动跟随）；拖拽时锁定视差避免「边转边晃」，相机拉近一点增加临场感
       const targetZ = baseZ - (dragging ? 0.55 : 0) - hoverBoost * 0.12
-      camera.position.x += (mouseX * 0.7 - camera.position.x) * 0.04
-      camera.position.y += (-mouseY * 0.5 - camera.position.y) * 0.04
+      const px = dragging ? 0 : mouseX * 0.7
+      const py = dragging ? 0 : -mouseY * 0.5
+      camera.position.x += (px - camera.position.x) * 0.04
+      camera.position.y += (py - camera.position.y) * 0.04
       camera.position.z += (targetZ - camera.position.z) * 0.06
       camera.lookAt(0, 0, 0)
 
