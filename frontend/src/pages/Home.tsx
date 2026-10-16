@@ -197,16 +197,22 @@ function Marquee() {
 
 /** 方向卡：鼠标经过时在卡片内落一小片蓝色柔光（Lumen 的 bento 手法） */
 function BentoCell({ dir, delay }: { dir: Direction; delay: number }) {
+  // 缓存卡片矩形：pointermove 里每次读 getBoundingClientRect 会强制同步布局，
+  // 快速滑动经过卡片时造成抖动。改为 pointerenter/scroll 时测量一次。
+  const rectRef = useRef<DOMRect | null>(null)
+  const cacheRect = (e: React.PointerEvent<HTMLDivElement>) => {
+    rectRef.current = e.currentTarget.getBoundingClientRect()
+  }
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = e.currentTarget
-    const r = el.getBoundingClientRect()
+    const r = rectRef.current ?? el.getBoundingClientRect()
     el.style.setProperty('--x', `${e.clientX - r.left}px`)
     el.style.setProperty('--y', `${e.clientY - r.top}px`)
   }
 
   return (
     <Reveal delay={delay} className={`span${dir.span}`}>
-      <div className="bcell" onPointerMove={onMove}>
+      <div className="bcell" onPointerEnter={cacheRect} onPointerMove={onMove}>
         <div className="bcell-art">
           <DirectionArt kind={dir.art} />
         </div>

@@ -45,11 +45,24 @@ body {
   overflow-x: clip;
 }
 
-/* 锚点跳转平滑滚动（尊重系统的减弱动效设置） */
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
+/* 全站平滑滚动（Lenis）官方配套样式。
+   注意：不要给 html 再设 scroll-behavior:smooth——Lenis 接管后
+   原生 smooth 会与之叠加，锚点跳转变成立即跳+二次动画 */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
 }
 
 /* 首屏以下的区块懒渲染：滚到附近才参与布局与绘制，
@@ -72,6 +85,16 @@ a {
   max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px;
+}
+
+/* 路由懒加载占位 */
+.route-loading {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  letter-spacing: 2px;
 }
 
 .section {
@@ -127,8 +150,10 @@ a {
   left: 0;
   right: 0;
   z-index: 100;
-  backdrop-filter: blur(16px);
-  background: rgba(8, 9, 10, 0.72);
+  /* 常驻导航栏：blur 半径减半 + 加深底色，滚动时省一半合成开销 */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(8, 9, 10, 0.82);
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -265,59 +290,11 @@ a {
   height: 100%;
 }
 
-/* 立方体背光，让 3D 场景从深色背景里"浮"起来 */
-.hero-glow {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 30%, rgba(79, 140, 255, 0.26), rgba(47, 107, 255, 0.08) 40%, transparent 62%);
-  pointer-events: none;
-}
+/* 死代码清理：原 .hero-content / .hero-tag / .hero-scroll / floatY /
+   .hero-glow / .hero-vignette / .hero-grid-bg 已随 hero 改版不再引用，
+   于 2026-10-16 整段删除 */
 
-/* 文案区暗场，保证文字在 3D 场景之上清晰可读 */
-.hero-vignette {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 48% 30% at 50% 76%, rgba(5, 7, 15, 0.62) 0%, rgba(5, 7, 15, 0.24) 55%, transparent 82%);
-  pointer-events: none;
-}
-
-.hero-grid-bg {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(79, 140, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 140, 255, 0.05) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 30%, transparent 75%);
-  pointer-events: none;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 2;
-  text-align: center;
-  pointer-events: none;
-}
-
-.hero-content .btn,
-.hero-content a {
-  pointer-events: auto;
-}
-
-.hero-tag {
-  display: inline-block;
-  font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 4px;
-  color: var(--accent-bright);
-  border: 1px solid rgba(34, 211, 238, 0.35);
-  border-radius: 999px;
-  padding: 6px 18px;
-  margin-bottom: 26px;
-  background: rgba(5, 9, 20, 0.6);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 0 24px rgba(34, 211, 238, 0.14);
-}
+/* ---------- 1 · Hero ---------- */
 
 .hero-title {
   font-family: var(--font-display);
@@ -356,25 +333,6 @@ a {
   display: flex;
   gap: 16px;
   justify-content: center;
-}
-
-.hero-scroll {
-  position: absolute;
-  bottom: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--accent-2);
-  font-size: 12px;
-  letter-spacing: 3px;
-  opacity: 0.75;
-  animation: floatY 2.4s ease-in-out infinite;
-  /* 纯装饰指示器，别挡住立方体底部的拖拽 */
-  pointer-events: none;
-}
-
-@keyframes floatY {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, 8px); }
 }
 
 /* ---------- 卡片 ---------- */
@@ -790,9 +748,8 @@ table.data-table {
 /* ============================================================
    首页 v2 · Linear 式排版骨架
    hero 重新定义为「左文案 / 右 3D」双栏。
-   旧的 .hero-content / .hero-tag / .hero-sub-en / .hero-sub-zh /
-   .hero-glow / .hero-vignette / .hero-grid-bg 已不再被引用，
-   定义保留但无副作用，后续清理时可整段删除。
+   （旧版的 .hero-content / .hero-tag / .hero-scroll / .hero-glow /
+   .hero-vignette / .hero-grid-bg 已于 2026-10-16 清理删除）
    ============================================================ */
 
 /* ---------- 1 · Hero ---------- */
