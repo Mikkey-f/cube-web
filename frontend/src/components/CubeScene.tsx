@@ -51,10 +51,12 @@ export default function CubeScene() {
     const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
     scene.environment = envTex
 
-    // 拖拽只在画布上生效，并加抓手光标
+    // 拖拽只在画布上生效，并加抓手光标；禁用文本选择，避免拖拽变成选中文字
     const canvas = renderer.domElement
     canvas.style.touchAction = 'none'
     canvas.style.cursor = 'grab'
+    canvas.style.userSelect = 'none'
+    canvas.style.webkitUserSelect = 'none'
 
     // 按容器宽高比算相机距离：取水平/垂直视场角中较小的那个来拟合
     const fitCamera = () => {
@@ -215,6 +217,7 @@ export default function CubeScene() {
     window.addEventListener('mousemove', onMouseMove)
 
     const onPointerDown = (e: PointerEvent) => {
+      e.preventDefault() // 阻止浏览器把按下+移动当成文本选择/原生拖拽
       dragging = true
       lastX = e.clientX
       lastY = e.clientY
@@ -244,6 +247,9 @@ export default function CubeScene() {
     }
     const onEnter = () => { hoverBoost = 1 }
     const onLeave = () => { hoverBoost = 0 }
+    // 兜底：拖拽过程中若浏览器仍尝试开始选择（如拖到画布外），直接拦掉
+    const onSelectStart = (e: Event) => { if (dragging) e.preventDefault() }
+    document.addEventListener('selectstart', onSelectStart)
     canvas.addEventListener('pointerdown', onPointerDown)
     canvas.addEventListener('pointermove', onPointerMove)
     canvas.addEventListener('pointerup', onPointerUp)
@@ -336,6 +342,7 @@ export default function CubeScene() {
       canvas.removeEventListener('pointercancel', onPointerUp)
       canvas.removeEventListener('pointerenter', onEnter)
       canvas.removeEventListener('pointerleave', onLeave)
+      document.removeEventListener('selectstart', onSelectStart)
       mount.removeChild(renderer.domElement)
       composer.dispose()
       envTex.dispose()
@@ -349,5 +356,5 @@ export default function CubeScene() {
     }
   }, [])
 
-  return <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+  return <div ref={mountRef} style={{ width: '100%', height: '100%', userSelect: 'none', WebkitUserSelect: 'none' }} />
 }

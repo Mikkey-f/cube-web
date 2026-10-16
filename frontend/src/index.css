@@ -797,6 +797,9 @@ table.data-table {
   width: 54%;
   height: 100%;
   z-index: 0;
+  /* 拖拽立方体时避免触发浏览器文本选择 */
+  user-select: none;
+  -webkit-user-select: none;
   /* 顶部淡入，避免画布和导航栏之间出现硬边 */
   mask-image: linear-gradient(180deg, transparent 0%, #000 8%);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 8%);
