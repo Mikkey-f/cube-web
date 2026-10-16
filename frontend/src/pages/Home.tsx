@@ -228,14 +228,6 @@ function clamp01(x: number) {
   return Math.min(1, Math.max(0, x))
 }
 
-/** 容器已滚过的比例：0 = 容器顶刚贴到视口顶，1 = 容器底贴到视口底 */
-function stackProgress(el: HTMLDivElement | null, v: number) {
-  if (!el) return 0
-  const top = el.getBoundingClientRect().top + window.scrollY
-  const range = Math.max(1, el.offsetHeight - window.innerHeight)
-  return clamp01((v - top) / range)
-}
-
 /** 粘性堆叠卡里的一张：被下一张盖住时缩一点、暗下去 */
 function StackCard({
   i,
@@ -250,22 +242,32 @@ function StackCard({
   reduce: boolean
   step: Step
 }) {
-  const start = i / total
-  const end = (i + 1) / total
   const cardRef = useRef<HTMLDivElement>(null)
   const scale = useMotionValue(1)
   const dim = useMotionValue(1)
 
   // 直接监听 window 滚动，往 MotionValue 里写（不触发 React 重渲染）。
   // 刻意不用 target 版 useScroll：实测在含 sticky 子元素的容器上拿不到进度。
+  //
+  // 变暗/缩小的驱动来自真实几何而不是虚构的等分进度：每张卡只在
+  // 「下一张卡从视口底部滑上来、直到吸附到位」的过程中被盖住；最后一张
+  // 卡没有下一张来盖，全程保持不透明，只在真正被推出屏幕时贴动作淡出。
   useEffect(() => {
     if (reduce) return
-    // 每张卡 sticky 停靠位置不同（96/112/128px），释放时机依次错开
     let stuckTop = 96
+    let stuckNext = 112
+    let relTop = 0
+    let cardH = 0
+    let marginBottom = 26
     const measure = () => {
       const card = cardRef.current
-      if (!card) return
+      const el = container.current
+      if (!card || !el) return
       stuckTop = parseFloat(getComputedStyle(card).top) || 96
+      stuckNext = stuckTop + 16
+      marginBottom = parseFloat(getComputedStyle(card).marginBottom) || 26
+      relTop = card.getBoundingClientRect().top - el.getBoundingClientRect().top
+      cardH = card.offsetHeight
     }
     measure()
     const apply = (v: number) => {
@@ -273,17 +275,20 @@ function StackCard({
       const card = cardRef.current
       if (!el || !card) return
       const top = el.getBoundingClientRect().top + window.scrollY
-      const range = Math.max(1, el.offsetHeight - window.innerHeight)
-      const p = clamp01((v - top) / range)
-      const t = clamp01((p - start) / (end - start))
-      scale.set(1 - 0.06 * t)
-      // 淡出贴着实际退场动作：释放前 80px 轻微预淡，推出行程的前 35% 内淡完，
-      // 卡片静止时始终保持可读，避免区块提前放空
-      const releaseV = top + el.offsetHeight - (stuckTop + card.offsetHeight)
+      let dimTarget = 1
+      if (i < total - 1) {
+        const nextDocTop = top + relTop + cardH + marginBottom
+        const enter = nextDocTop - window.innerHeight
+        const arrive = nextDocTop - stuckNext
+        dimTarget = 1 - 0.5 * clamp01((v - enter) / Math.max(1, arrive - enter))
+      }
+      // 退场淡出贴着真实释放点（容器底边碰到卡片下边缘），静止时保持可读
+      const releaseV = top + el.offsetHeight - (stuckTop + cardH + marginBottom)
       const fadeStart = releaseV - 80
-      const fadeEnd = releaseV + card.offsetHeight * 0.35
+      const fadeEnd = releaseV + cardH * 0.35
       const exit = clamp01((v - fadeStart) / (fadeEnd - fadeStart))
-      dim.set((1 - 0.5 * t) * (1 - exit))
+      dim.set(dimTarget * (1 - exit))
+      scale.set(1 - 0.06 * (1 - dimTarget))
     }
     apply(window.scrollY)
     const onScroll = () => apply(window.scrollY)
@@ -297,7 +302,7 @@ function StackCard({
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
     }
-  }, [reduce, container, start, end, scale, dim, i])
+  }, [reduce, container, i, total, scale, dim])
 
   return (
     <motion.div ref={cardRef} className="stack-block" style={reduce ? undefined : { scale, opacity: dim }}>
