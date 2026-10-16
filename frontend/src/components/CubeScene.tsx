@@ -4,40 +4,19 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 /**
  * CUBE 立方体 3D 场景
- * 玻璃质感线框立方体（菲涅尔边缘光）+ 三层嵌套发光内核 + 倾斜轨道环 + 环绕小球
+ * 真实玻璃外壳（PBR 折射 + 清漆 + 环境反射 + 彩虹薄膜）
+ * + 三层嵌套发光内核 + 倾斜轨道环 + 环绕小球 + 泛光后期
  *
  * 交互：
- * - 按住拖拽直接旋转立方体（带惯性，松手缓动回归自转），触屏可用
- * - 未拖拽时保留原有鼠标视差；悬停时转速与亮度轻微提升
+ * - 按住拖拽自由旋转（双轴任意翻转，带惯性），触屏可用
+ * - 松手后惯性衰减，俯仰角缓慢回归基础角度，水平方向接管回自转
+ * - 未拖拽时保留鼠标视差；悬停/拖拽时转速、亮度、相机距离轻微加成
  */
 const PAGE_BG = 0x08090a
-
-/** 菲涅尔玻璃面：正对时几乎透明，斜对时泛起边缘光 */
-const glassFaceShader = {
-  vertexShader: /* glsl */ `
-    varying vec3 vNormalW;
-    varying vec3 vPosW;
-    void main() {
-      vNormalW = normalize(normalMatrix * normal);
-      vPosW = (modelViewMatrix * vec4(position, 1.0)).xyz;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: /* glsl */ `
-    uniform vec3 uColor;
-    uniform float uOpacity;
-    varying vec3 vNormalW;
-    varying vec3 vPosW;
-    void main() {
-      vec3 viewDir = normalize(-vPosW);
-      float fresnel = pow(1.0 - abs(dot(normalize(vNormalW), viewDir)), 2.6);
-      gl_FragColor = vec4(uColor * (0.35 + fresnel * 1.5), uOpacity * (0.25 + fresnel));
-    }
-  `
-}
 
 export default function CubeScene() {
   const mountRef = useRef<HTMLDivElement>(null)
@@ -61,7 +40,16 @@ export default function CubeScene() {
     renderer.setSize(mount.clientWidth || 1, mount.clientHeight || 1)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75))
     renderer.setClearColor(PAGE_BG, 1)
+    // ACES 色调映射：高光不过曝、暗部有层次，玻璃质感的关键一步
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.15
     mount.appendChild(renderer.domElement)
+
+    // 环境反射贴图：RoomEnvironment 经 PMREM 预滤波，
+    // 给玻璃外壳提供真实的高光条和反射层次（无需外部 HDR 资源）
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    scene.environment = envTex
 
     // 拖拽只在画布上生效，并加抓手光标
     const canvas = renderer.domElement
@@ -88,19 +76,27 @@ export default function CubeScene() {
     const outerGeo = new THREE.BoxGeometry(2.6, 2.6, 2.6)
     group.scale.setScalar(BASE_SCALE)
     group.position.y = BASE_Y
-    // 玻璃面：菲涅尔边缘光替代原先的均匀淡面
-    const glassMat = new THREE.ShaderMaterial({
-      vertexShader: glassFaceShader.vertexShader,
-      fragmentShader: glassFaceShader.fragmentShader,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x3f7fd0) },
-        uOpacity: { value: 0.5 }
-      },
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide
+
+    // 真实玻璃外壳：transmission 折射 + clearcoat 清漆层 + 边缘染色 + 彩虹薄膜。
+    // 不透明内核会被折射捕获，透过玻璃能看到扭曲发光的内核。
+    const glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xd8ecff,
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 1,
+      thickness: 1.6,
+      ior: 1.48,
+      attenuationColor: new THREE.Color(0x7fb8ff),
+      attenuationDistance: 3.2,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+      iridescence: 0.28,
+      iridescenceIOR: 1.32,
+      envMapIntensity: 1.5,
+      specularIntensity: 1
     })
     group.add(new THREE.Mesh(outerGeo, glassMat))
+
     // 外轮廓线：透明度交给动画层做呼吸
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x86bdff, transparent: true, opacity: 1 })
     group.add(new THREE.LineSegments(new THREE.EdgesGeometry(outerGeo), edgeMat))
@@ -112,20 +108,22 @@ export default function CubeScene() {
     const vertexMat = new THREE.PointsMaterial({ color: 0xbfdcff, size: 0.11, transparent: true, opacity: 0.95 })
     group.add(new THREE.Points(vertexGeo, vertexMat))
 
-    // 三层嵌套发光内核：大→小逐层反向旋转
+    // 三层嵌套发光内核：大→小逐层反向旋转。
+    // 内两层必须不透明，才会出现在玻璃的折射缓冲里（透过外壳可见）；
+    // 呼吸效果从调透明度改为调颜色亮度。
     const innerRoot = new THREE.Group()
     group.add(innerRoot)
-    const innerLayers: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial }[] = []
+    const innerLayers: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; baseColor: THREE.Color }[] = []
     const innerSpecs = [
-      { size: 0.95, color: 0x3f8fe0, opacity: 0.16 },
-      { size: 0.72, color: 0x8cc8ff, opacity: 0.95 },
-      { size: 0.46, color: 0xe8f4ff, opacity: 0.98 }
+      { size: 0.95, color: 0x3f8fe0, opacity: 0.16, transparent: true },
+      { size: 0.72, color: 0x8cc8ff, opacity: 1, transparent: false },
+      { size: 0.46, color: 0xe8f4ff, opacity: 1, transparent: false }
     ]
     for (const spec of innerSpecs) {
       const geo = new THREE.BoxGeometry(spec.size, spec.size, spec.size)
       const mat = new THREE.MeshBasicMaterial({
         color: spec.color,
-        transparent: true,
+        transparent: spec.transparent,
         opacity: spec.opacity
       })
       const mesh = new THREE.Mesh(geo, mat)
@@ -134,7 +132,7 @@ export default function CubeScene() {
         new THREE.LineBasicMaterial({ color: 0xcfe4ff, transparent: true, opacity: 0.85 })
       ))
       innerRoot.add(mesh)
-      innerLayers.push({ mesh, mat })
+      innerLayers.push({ mesh, mat, baseColor: new THREE.Color(spec.color) })
       // 最外层那档尺寸偏大，作为光晕壳，不参与 edges 描述的硬线条
       if (spec.size > 0.8) mesh.children[0].visible = false
     }
@@ -197,15 +195,15 @@ export default function CubeScene() {
     composer.addPass(new OutputPass())
 
     // ---------- 交互状态 ----------
-    // 拖拽：直接驱动 group 的目标姿态；惯性 velocity + 弹簧回归自转
+    // 自由双轴旋转：rotY 无限累积（自转叠加在其上），rotX 松手后缓慢回归基础俯仰
     let dragging = false
     let lastX = 0
     let lastY = 0
-    let velX = 0 // 绕 Y 角速度（弧度/秒）
-    let velZ = 0 // 绕 X（屏幕竖直拖动）角速度
-    let rotX = 0.18          // 当前叠加姿态（在自转之上）
-    let hoverBoost = 0       // 悬停加成（转速/亮度），缓动
-    let autoPhase = 0        // 自转累计相位：松手后从这里继续，不跳变
+    let velY = 0              // 绕 Y 惯性角速度（每帧增量，弧度）
+    let velX = 0              // 绕 X 惯性角速度
+    let rotY = 0              // 当前水平角
+    let rotX = 0.18           // 当前俯仰角
+    let hoverBoost = 0        // 悬停加成（转速/亮度），缓动
 
     // 未拖拽时：挂在 window 上的视差（保留原行为）
     let mouseX = 0
@@ -220,8 +218,8 @@ export default function CubeScene() {
       dragging = true
       lastX = e.clientX
       lastY = e.clientY
+      velY = 0
       velX = 0
-      velZ = 0
       canvas.setPointerCapture(e.pointerId)
       canvas.style.cursor = 'grabbing'
     }
@@ -231,12 +229,12 @@ export default function CubeScene() {
       const dy = e.clientY - lastY
       lastX = e.clientX
       lastY = e.clientY
-      // 像素 → 弧度：拖过整个容器约转 260°
-      const k = (Math.PI * 1.45) / Math.max(1, canvas.clientWidth)
-      velX = dx * k
-      velZ = dy * k
-      autoPhase += velX
-      rotX = THREE.MathUtils.clamp(rotX + velZ, -0.9, 0.9)
+      // 像素 → 弧度：拖过整个容器约转 290°
+      const k = (Math.PI * 1.6) / Math.max(1, canvas.clientWidth)
+      velY = dx * k
+      velX = dy * k
+      rotY += velY
+      rotX += velX // 不钳制：允许任意翻转
     }
     const onPointerUp = (e: PointerEvent) => {
       if (!dragging) return
@@ -269,14 +267,19 @@ export default function CubeScene() {
       const t = clock.getElapsedTime()
       hoverBoost += ((dragging ? 1 : hoverBoost > 0.5 ? 1 : 0) - hoverBoost) * 0.08
 
-      // 自转相位：拖拽时由手势累加；松手后惯性衰减并回归基础转速
+      // 旋转：拖拽时由手势直接驱动；松手后惯性指数衰减，
+      // 水平方向平滑接管回自转，俯仰角沿最短路径缓慢回归基础角度
       if (!dragging) {
-        autoPhase += (0.32 + hoverBoost * 0.25) * dt
-        autoPhase += velX * 0.9
-        velX *= Math.pow(0.02, dt)   // 惯性指数衰减
-        rotX += (0.18 - rotX) * (1 - Math.pow(0.002, dt)) // 缓动回到基础俯仰
+        rotY += (0.32 + hoverBoost * 0.25) * dt + velY
+        rotX += velX
+        velY *= Math.pow(0.02, dt)
+        velX *= Math.pow(0.02, dt)
+        let diff = (0.18 - rotX) % (Math.PI * 2)
+        if (diff > Math.PI) diff -= Math.PI * 2
+        if (diff < -Math.PI) diff += Math.PI * 2
+        rotX += diff * (1 - Math.pow(0.05, dt)) // 很慢的弹簧，翻过的面会停留一会儿
       }
-      group.rotation.y = autoPhase
+      group.rotation.y = rotY
       const floatX = Math.sin(t * 0.5) * 0.12
       group.rotation.x = rotX + floatX
 
@@ -298,13 +301,15 @@ export default function CubeScene() {
       const pulse = 0.86 + Math.sin(t * 2.2) * 0.14
       innerLayers.forEach((l, idx) => {
         if (idx === 0) return
-        l.mat.color.setScalar(1) // 保持基色，透明度做呼吸
-        l.mat.opacity = (idx === 1 ? 0.9 : 0.96) * (0.85 + pulse * 0.15) * boost
+        // 不透明内核：用颜色亮度做呼吸（透明度固定为 1，保证折射可见）
+        const brightness = (idx === 1 ? 0.9 : 0.96) * (0.85 + pulse * 0.15) * boost
+        l.mat.color.copy(l.baseColor).multiplyScalar(Math.min(brightness, 1.6))
       })
       edgeMat.opacity = (0.75 + Math.sin(t * 1.9) * 0.1 + hoverBoost * 0.25) * boost
       vertexMat.size = 0.11 * (1 + Math.sin(t * 2.6) * 0.22)
       vertexMat.opacity = Math.min(1, (0.8 + Math.sin(t * 2.6) * 0.15) * boost)
-      glassMat.uniforms.uOpacity.value = 0.5 * boost
+      // 拖拽/悬停时玻璃反射更亮一点
+      glassMat.envMapIntensity = 1.5 * boost
 
       // 环绕小球
       const a = t * 0.85
@@ -333,6 +338,9 @@ export default function CubeScene() {
       canvas.removeEventListener('pointerleave', onLeave)
       mount.removeChild(renderer.domElement)
       composer.dispose()
+      envTex.dispose()
+      pmrem.dispose()
+      glassMat.dispose()
       renderer.dispose()
       outerGeo.dispose()
       particleGeo.dispose()
