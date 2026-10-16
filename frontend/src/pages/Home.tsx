@@ -260,15 +260,12 @@ function StackCard({
   // 刻意不用 target 版 useScroll：实测在含 sticky 子元素的容器上拿不到进度。
   useEffect(() => {
     if (reduce) return
-    // 每张卡 sticky 停靠位置不同（96/112/128px），释放时机依次错开；
-    // 淡出距离按卡高取值，让卡片在被推出屏幕前先平滑消失。
+    // 每张卡 sticky 停靠位置不同（96/112/128px），释放时机依次错开
     let stuckTop = 96
-    let exitSpan = 280
     const measure = () => {
       const card = cardRef.current
       if (!card) return
       stuckTop = parseFloat(getComputedStyle(card).top) || 96
-      exitSpan = Math.min(340, Math.max(200, card.offsetHeight * 0.6))
     }
     measure()
     const apply = (v: number) => {
@@ -280,9 +277,12 @@ function StackCard({
       const p = clamp01((v - top) / range)
       const t = clamp01((p - start) / (end - start))
       scale.set(1 - 0.06 * t)
-      // sticky 释放（卡片被推出屏幕）前先淡出到 0，消除快速滚动时的闪没感
+      // 淡出贴着实际退场动作：释放前 80px 轻微预淡，推出行程的前 35% 内淡完，
+      // 卡片静止时始终保持可读，避免区块提前放空
       const releaseV = top + el.offsetHeight - (stuckTop + card.offsetHeight)
-      const exit = clamp01((v - (releaseV - exitSpan)) / exitSpan)
+      const fadeStart = releaseV - 80
+      const fadeEnd = releaseV + card.offsetHeight * 0.35
+      const exit = clamp01((v - fadeStart) / (fadeEnd - fadeStart))
       dim.set((1 - 0.5 * t) * (1 - exit))
     }
     apply(window.scrollY)
