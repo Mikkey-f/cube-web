@@ -210,6 +210,17 @@ a {
   font-size: 13.5px;
 }
 
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+
+.btn-danger:hover {
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #fca5a5;
+  background: rgba(248, 113, 113, 0.08);
+}
+
 .btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;

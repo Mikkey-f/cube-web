@@ -17,6 +17,7 @@ export default function Admin() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   useEffect(() => {
     api.get('/admin/applications')
@@ -42,6 +43,19 @@ export default function Admin() {
     }
   }
 
+  async function removeApplication(item: ApplicationItem) {
+    if (!confirm(`确定删除「${item.realName}」的报名吗？简历文件会一并清除，无法恢复。`)) return
+    setDeletingId(item.id)
+    try {
+      await api.delete(`/admin/applications/${item.id}`)
+      setList((prev) => prev.filter((x) => x.id !== item.id))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div className="admin-page">
       <div className="container">
@@ -63,7 +77,7 @@ export default function Admin() {
                   <th>联系方式</th>
                   <th>自我介绍</th>
                   <th>提交时间</th>
-                  <th>简历</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,8 +93,12 @@ export default function Admin() {
                     <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{item.createdAt}</td>
                     <td>
                       <button className="btn btn-sm" onClick={() => downloadResume(item)}
-                        disabled={downloadingId === item.id}>
+                        disabled={downloadingId === item.id || deletingId === item.id}>
                         {downloadingId === item.id ? '下载中…' : '下载 PDF'}
+                      </button>{' '}
+                      <button className="btn btn-sm btn-danger" onClick={() => removeApplication(item)}
+                        disabled={deletingId === item.id || downloadingId === item.id}>
+                        {deletingId === item.id ? '删除中…' : '删除'}
                       </button>
                     </td>
                   </tr>

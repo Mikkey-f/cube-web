@@ -6,6 +6,8 @@ import com.cube.lab.repository.ApplicationRepository;
 import com.cube.lab.repository.UserRepository;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -32,6 +34,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 public class ApplicationController {
+
+    private static final Logger log = LoggerFactory.getLogger(ApplicationController.class);
 
     private static final long MAX_RESUME_SIZE = 20L * 1024 * 1024;
 
@@ -146,6 +150,25 @@ public class ApplicationController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
                 .body(new FileSystemResource(file));
+    }
+
+    /** 管理员删除投递，简历文件一并清除 */
+    @DeleteMapping("/admin/applications/{id}")
+    @Transactional
+    public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
+        Application app = applicationRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "报名记录不存在"));
+        applicationRepository.delete(app);
+        Path file = uploadDir.resolve(app.getResumeFilename()).normalize();
+        if (file.startsWith(uploadDir)) {
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException e) {
+                // 记录已删，文件残留不影响业务，仅告警便于手工清理
+                log.warn("简历文件删除失败: {}", file, e);
+            }
+        }
+        return ResponseEntity.noContent().build();
     }
 
     private void validateResume(MultipartFile resume) {
