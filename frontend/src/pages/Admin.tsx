@@ -12,6 +12,14 @@ interface ApplicationItem {
   createdAt: string
 }
 
+interface MessageItem {
+  id: number
+  nickname: string
+  content: string
+  approved: boolean
+  createdAt: string
+}
+
 export default function Admin() {
   const [list, setList] = useState<ApplicationItem[]>([])
   const [error, setError] = useState('')
@@ -19,12 +27,46 @@ export default function Admin() {
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
 
+  // 祝福墙审核
+  const [messages, setMessages] = useState<MessageItem[]>([])
+  const [msgLoading, setMsgLoading] = useState(true)
+  const [reviewingId, setReviewingId] = useState<number | null>(null)
+
   useEffect(() => {
     api.get('/admin/applications')
       .then((res) => setList(res.data))
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setLoading(false))
+    api.get('/admin/messages')
+      .then((res) => setMessages(res.data))
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setMsgLoading(false))
   }, [])
+
+  async function reviewMessage(item: MessageItem, approved: boolean) {
+    setReviewingId(item.id)
+    try {
+      const { data } = await api.put(`/admin/messages/${item.id}`, { approved })
+      setMessages((prev) => prev.map((x) => (x.id === item.id ? data : x)))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setReviewingId(null)
+    }
+  }
+
+  async function removeMessage(item: MessageItem) {
+    if (!confirm('确定删除这条留言吗？无法恢复。')) return
+    setReviewingId(item.id)
+    try {
+      await api.delete(`/admin/messages/${item.id}`)
+      setMessages((prev) => prev.filter((x) => x.id !== item.id))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setReviewingId(null)
+    }
+  }
 
   async function downloadResume(item: ApplicationItem) {
     setDownloadingId(item.id)
@@ -99,6 +141,62 @@ export default function Admin() {
                       <button className="btn btn-sm btn-danger" onClick={() => removeApplication(item)}
                         disabled={deletingId === item.id || downloadingId === item.id}>
                         {deletingId === item.id ? '删除中…' : '删除'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ---------- 祝福墙审核 ---------- */}
+        <h2 className="section-title" style={{ marginTop: 72 }}>祝福墙 <span className="title-glow">留言审核</span></h2>
+        <p className="section-sub">
+          共 {messages.length} 条留言，其中 {messages.filter((m) => m.approved).length} 条已上墙
+        </p>
+        {msgLoading ? (
+          <div className="empty-state">加载中…</div>
+        ) : messages.length === 0 ? (
+          <div className="empty-state">还没有留言，首页祝福墙会显示占位文案</div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>昵称</th>
+                  <th>留言内容</th>
+                  <th>提交时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {messages.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.nickname}</td>
+                    <td className="intro-cell">{item.content}</td>
+                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{item.createdAt}</td>
+                    <td>
+                      <span className={`msg-badge ${item.approved ? 'on' : ''}`}>
+                        {item.approved ? '已上墙' : '待审核'}
+                      </span>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {item.approved ? (
+                        <button className="btn btn-sm" onClick={() => reviewMessage(item, false)}
+                          disabled={reviewingId === item.id}>
+                          下架
+                        </button>
+                      ) : (
+                        <button className="btn btn-sm btn-primary" onClick={() => reviewMessage(item, true)}
+                          disabled={reviewingId === item.id}>
+                          通过
+                        </button>
+                      )}{' '}
+                      <button className="btn btn-sm btn-danger" onClick={() => removeMessage(item)}
+                        disabled={reviewingId === item.id}>
+                        删除
                       </button>
                     </td>
                   </tr>

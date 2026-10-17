@@ -35,6 +35,11 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // 首页「招新实时战报」只读聚合数字，公开访问
+                        .requestMatchers(HttpMethod.GET, "/api/stats/**").permitAll()
+                        // 祝福墙：提交留言与拉取已审核留言公开；审核管理走 /api/admin/** 需 ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/messages").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/messages/approved").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())

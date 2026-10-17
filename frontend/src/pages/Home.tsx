@@ -10,6 +10,8 @@ import {
 } from 'framer-motion'
 import CubeScene from '../components/CubeScene'
 import Reveal from '../components/Reveal'
+import RecruitPulse from '../components/RecruitPulse'
+import WishWall from '../components/WishWall'
 import { HexBadge, HexDivider } from '../components/Hex'
 import { DirectionArt, StepPanel } from '../components/MiniUI'
 
@@ -468,6 +470,10 @@ export default function Home() {
               <Link to="/apply" className="btn btn-primary">加入我们</Link>
               <a href="#about" className="btn">了解实验室</a>
             </motion.div>
+            <motion.p className="hero-egg-hint" variants={heroItem}>
+              <span className="egg-hint-dot" aria-hidden="true" />
+              连点五下立方体，有小惊喜
+            </motion.p>
           </motion.div>
         </div>
       </section>
@@ -599,9 +605,14 @@ export default function Home() {
               <Link to="/apply" className="btn btn-primary">立即报名</Link>
               <a href="#about" className="btn">了解实验室</a>
             </div>
+            {/* 招新实时战报：无投递 / 接口失败时组件自身不渲染，版式不受影响 */}
+            <RecruitPulse />
           </Reveal>
         </div>
       </section>
+
+      {/* ---------- 8.5 · 留言祝福墙（审核制） ---------- */}
+      <WishWall />
 
       {/* ---------- 9 · 页脚 ---------- */}
       <footer className="footer">
