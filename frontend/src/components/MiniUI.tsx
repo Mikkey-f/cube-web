@@ -11,117 +11,216 @@ const BLUE = '#8fb4ff'
 const BLUE_SOFT = 'rgba(143,180,255,0.45)'
 const CYAN = '#22d3ee'
 
-/* ---------- 基础设施：构建 → 部署 流水线 + 负载条 ---------- */
+/* ---------- 基础与算法：排序柱（swap 交换动画，最右为「已就位」的完成态） ---------- */
 function InfraArt() {
-  const nodes = [
-    { x: 70, label: '提交' },
-    { x: 160, label: '构建' },
-    { x: 250, label: '测试' },
-    { x: 340, label: '部署' }
-  ]
+  // 底边 y=122；[x, 高]，最右一根是排序完成的目标态（青色发光）
   const bars = [
-    { w: 224, c: BLUE_SOFT },
-    { w: 168, c: 'rgba(255,255,255,0.16)' },
-    { w: 112, c: 'rgba(34,211,238,0.5)' }
+    { x: 90, h: 46 },
+    { x: 130, h: 88 },
+    { x: 170, h: 34 },
+    { x: 210, h: 66 },
+    { x: 250, h: 52 }
   ]
+  const BASE = 122
   return (
     <svg className="art-svg" viewBox="0 0 400 150" fill="none" aria-hidden="true">
-      {/* 连接线 */}
-      {nodes.slice(0, -1).map((n, i) => (
-        <path key={i} d={`M${n.x + 15} 52 H${nodes[i + 1].x - 15}`} stroke={LINE} strokeWidth="1.4" />
-      ))}
-      {/* 节点 */}
-      {nodes.map((n, i) => (
-        <g key={n.label}>
-          <circle cx={n.x} cy={52} r={13} fill="#0e1013" stroke={i === 3 ? BLUE : LINE} strokeWidth="1.3" />
-          {i === 3 ? (
-            <path d={`M${n.x - 5} 52 l3.4 3.4 L${n.x + 5.6} 46`} stroke={CYAN} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          ) : (
-            <circle cx={n.x} cy={52} r={3.4} fill={i === 0 ? BLUE : 'rgba(255,255,255,0.35)'} />
-          )}
-          <text x={n.x} y={84} textAnchor="middle" fill="rgba(255,255,255,0.62)"
-            style={{ font: '500 11px var(--font-display, sans-serif)' }}>{n.label}</text>
-        </g>
-      ))}
-      {/* 沿流水线推进的包 */}
-      <circle r="3.2" fill={CYAN}>
-        <animateMotion dur="3.2s" repeatCount="indefinite" path="M70 52 H340" />
-      </circle>
-      {/* 负载条 */}
-      {bars.map((b, i) => (
-        <rect key={i} x={88} y={101 + i * 15} width={b.w} height="6" rx="3" fill={b.c} />
-      ))}
+      <defs>
+        <linearGradient id="fnd-bar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={BLUE} />
+          <stop offset="1" stopColor="rgba(143,180,255,0.18)" />
+        </linearGradient>
+      </defs>
+      {/* 基线 */}
+      <line x1="66" y1={BASE + 1} x2="334" y2={BASE + 1} stroke={LINE} strokeWidth="1.2" />
+      {bars.map((b, i) => {
+        const target = i === bars.length - 1
+        return (
+          <rect key={i}
+            x={b.x} width="22" rx="4"
+            y={BASE - b.h} height={b.h}
+            fill={target ? CYAN : 'url(#fnd-bar)'}
+            opacity={target ? 0.9 : 0.85}
+          >
+            {i === 1 && (
+              <animateTransform attributeName="transform" type="translate"
+                values="0 0; 40 0; 40 0; 0 0" keyTimes="0;0.35;0.55;1"
+                dur="3.6s" repeatCount="indefinite" />
+            )}
+            {i === 2 && (
+              <animateTransform attributeName="transform" type="translate"
+                values="0 0; -40 0; -40 0; 0 0" keyTimes="0;0.35;0.55;1"
+                dur="3.6s" repeatCount="indefinite" />
+            )}
+          </rect>
+        )
+      })}
+      {/* 扫描线：从左到右掠过，像一次「遍历」 */}
+      <line y1="34" y2={BASE} stroke={CYAN} strokeWidth="1.2" opacity="0.5">
+        <animate attributeName="x1" values="70;330" dur="3.6s" repeatCount="indefinite" />
+        <animate attributeName="x2" values="70;330" dur="3.6s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0;0.5;0" dur="3.6s" repeatCount="indefinite" />
+      </line>
+      {/* 目标态呼吸光 */}
+      <rect x="250" y={BASE - 88} width="22" height="88" rx="4" fill="none" stroke={CYAN} strokeWidth="1" opacity="0.4">
+        <animate attributeName="opacity" values="0.15;0.55;0.15" dur="2.2s" repeatCount="indefinite" />
+      </rect>
     </svg>
   )
 }
 
-/* ---------- 后端与系统：服务节点图 ---------- */
+/* ---------- 后端与系统：一条请求的旅程（客户端 → 服务 → 数据库，响应沿弧线返回） ---------- */
 function BackendArt() {
   return (
     <svg className="art-svg" viewBox="0 0 400 150" fill="none" aria-hidden="true">
-      <rect x="166" y="52" width="68" height="46" rx="9" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
-      <rect x="88" y="20" width="52" height="34" rx="8" stroke="rgba(255,255,255,0.11)" strokeWidth="1" />
-      <rect x="260" y="20" width="52" height="34" rx="8" stroke="rgba(255,255,255,0.11)" strokeWidth="1" />
-      <rect x="88" y="96" width="52" height="34" rx="8" stroke="rgba(255,255,255,0.11)" strokeWidth="1" />
-      <rect x="260" y="96" width="52" height="34" rx="8" stroke="rgba(255,255,255,0.11)" strokeWidth="1" />
-      <path d="M140 37 L166 75 M260 37 L234 75 M140 113 L166 75 M260 113 L234 75"
-        stroke={BLUE_SOFT} strokeWidth="1" />
-      <circle cx="200" cy="75" r="5" fill={BLUE} />
-      <circle cx="114" cy="37" r="2.5" fill="rgba(255,255,255,0.35)" />
-      <circle cx="286" cy="113" r="2.5" fill={CYAN} />
-      <circle r="2.6" fill={CYAN}>
-        <animateMotion dur="2.8s" repeatCount="indefinite" path="M114 37 L166 75 L234 75 L286 113" />
+      {/* 客户端：小窗 */}
+      <rect x="58" y="55" width="62" height="40" rx="8" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+      <circle cx="70" cy="65" r="2" fill="rgba(255,255,255,0.35)" />
+      <circle cx="78" cy="65" r="2" fill="rgba(255,255,255,0.2)" />
+      <line x1="66" y1="76" x2="104" y2="76" stroke={LINE} strokeWidth="1.2" />
+      <line x1="66" y1="84" x2="92" y2="84" stroke={LINE_SOFT} strokeWidth="1.2" />
+      {/* 服务：机柜式，三条层纹 */}
+      <rect x="168" y="38" width="72" height="74" rx="10" stroke={BLUE_SOFT} strokeWidth="1.2" />
+      <line x1="178" y1="56" x2="230" y2="56" stroke={LINE} strokeWidth="1.2" />
+      <line x1="178" y1="75" x2="230" y2="75" stroke={LINE} strokeWidth="1.2" />
+      <line x1="178" y1="94" x2="230" y2="94" stroke={LINE} strokeWidth="1.2" />
+      <circle cx="204" cy="75" r="4.5" fill={BLUE} />
+      {/* 数据库：圆柱 */}
+      <g stroke={CYAN} strokeWidth="1.2" opacity="0.85">
+        <ellipse cx="316" cy="58" rx="20" ry="7" />
+        <path d="M296 58 V92 a20 7 0 0 0 40 0 V58" />
+        <path d="M296 75 a20 7 0 0 0 40 0" stroke={LINE_SOFT} />
+      </g>
+      {/* 请求链路（实线）与响应链路（上方弧线，虚线） */}
+      <path d="M120 75 H168" stroke={LINE} strokeWidth="1.3" />
+      <path d="M240 75 H294" stroke={LINE} strokeWidth="1.3" />
+      <path d="M172 34 C146 16 112 18 92 50" stroke={LINE_SOFT} strokeWidth="1.1" strokeDasharray="3 5" />
+      {/* 请求粒子：客户端 → 服务 */}
+      <circle r="2.8" fill={BLUE}>
+        <animateMotion dur="1.6s" repeatCount="indefinite" path="M120 75 H166" />
+      </circle>
+      {/* 服务 → 数据库，接续在半个周期后 */}
+      <circle r="2.8" fill={CYAN}>
+        <animateMotion dur="1.2s" begin="0.8s" repeatCount="indefinite" path="M240 75 H292" />
+      </circle>
+      {/* 响应粒子：服务 → 客户端，走上方虚线弧 */}
+      <circle r="2.4" fill="rgba(255,255,255,0.75)">
+        <animateMotion dur="1.8s" begin="1.4s" repeatCount="indefinite" path="M172 34 C146 16 112 18 92 50" />
       </circle>
     </svg>
   )
 }
 
-/* ---------- 人工智能：分层网络 ---------- */
+/* ---------- 人工智能：背景虚化神经网络（课程地基）+ 前景 Agent 工具循环 ---------- */
 function AiArt() {
-  const layers = [
-    { x: 116, ys: [36, 75, 114] },
-    { x: 200, ys: [24, 58, 92, 126] },
-    { x: 284, ys: [36, 75, 114] }
+  // 背景：右侧一片低透明度的神经网络，呼应 CS224n
+  const netNodes = [
+    { x: 300, y: 30 }, { x: 330, y: 62 }, { x: 296, y: 96 }, { x: 336, y: 122 }, { x: 268, y: 60 }
   ]
-  const edges: string[] = []
-  for (let i = 0; i < layers.length - 1; i++) {
-    for (const y1 of layers[i].ys) {
-      for (const y2 of layers[i + 1].ys) edges.push(`M${layers[i].x} ${y1} L${layers[i + 1].x} ${y2}`)
-    }
-  }
+  const netEdges = [
+    [0, 1], [0, 4], [1, 2], [1, 3], [2, 4], [3, 4]
+  ]
+  // 前景：Agent 核心周围三个工具节点（读代码 / 查文档 / 写脚本）
+  const tools = [
+    { cx: 138, cy: 42, glyph: 'code' },
+    { cx: 130, cy: 104, glyph: 'doc' },
+    { cx: 196, cy: 124, glyph: 'term' }
+  ]
   return (
     <svg className="art-svg" viewBox="0 0 400 150" fill="none" aria-hidden="true">
-      {edges.map((d, i) => (
-        <path key={i} d={d} stroke="rgba(143,180,255,0.16)" strokeWidth="1" />
+      {/* 背景神经网络：低透明度，退到第二层 */}
+      <g opacity="0.32">
+        {netEdges.map(([a, b], i) => (
+          <line key={i} x1={netNodes[a].x} y1={netNodes[a].y} x2={netNodes[b].x} y2={netNodes[b].y}
+            stroke={BLUE_SOFT} strokeWidth="0.8" />
+        ))}
+        {netNodes.map((n, i) => (
+          <circle key={i} cx={n.x} cy={n.y} r="3" fill="rgba(143,180,255,0.3)" />
+        ))}
+      </g>
+      {/* 轨道：虚线圆 + 一段旋转的高亮弧（Agent 的感知→行动循环） */}
+      <circle cx="200" cy="75" r="52" stroke={LINE_SOFT} strokeWidth="1" strokeDasharray="2 6" />
+      <g>
+        <circle r="42" cx="200" cy="75" fill="none" stroke={CYAN} strokeWidth="1.4"
+          strokeDasharray="30 234" strokeLinecap="round" opacity="0.75" />
+        <animateTransform attributeName="transform" type="rotate" from="0 200 75" to="360 200 75"
+          dur="9s" repeatCount="indefinite" />
+      </g>
+      {/* Agent 核心：发光小方块 */}
+      <rect x="182" y="57" width="36" height="36" rx="9" fill="rgba(34,211,238,0.08)" stroke={CYAN} strokeWidth="1.3" />
+      <circle cx="200" cy="75" r="4" fill={CYAN}>
+        <animate attributeName="opacity" values="1;0.45;1" dur="2.4s" repeatCount="indefinite" />
+      </circle>
+      {/* 三个工具节点 */}
+      {tools.map((t) => (
+        <g key={t.glyph}>
+          <circle cx={t.cx} cy={t.cy} r="13" fill="#0e1013" stroke={BLUE_SOFT} strokeWidth="1.2" />
+          {t.glyph === 'code' && (
+            <path d="M133 42 l-4 4 4 4 M143 42 l4 4 -4 4" stroke={BLUE} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          )}
+          {t.glyph === 'doc' && (
+            <g stroke={BLUE} strokeWidth="1.3" strokeLinecap="round">
+              <rect x="125" y="98" width="10" height="12" rx="1.5" />
+              <line x1="128" y1="102" x2="132" y2="102" />
+              <line x1="128" y1="106" x2="132" y2="106" />
+            </g>
+          )}
+          {t.glyph === 'term' && (
+            <g stroke={BLUE} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M190 119 l4 4 -4 4" />
+              <line x1="197" y1="127" x2="203" y2="127" />
+            </g>
+          )}
+        </g>
       ))}
-      {layers.map((l, li) =>
-        l.ys.map((y, yi) => {
-          const active = li === 1 && yi === 1
-          return active ? (
-            <circle key={`${li}-${yi}`} cx={l.x} cy={y} r="6" fill={CYAN} />
-          ) : (
-            <circle key={`${li}-${yi}`} cx={l.x} cy={y} r="5.5"
-              fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
-          )
-        })
-      )}
+      {/* 循环粒子：沿轨道把三个工具节点串起来 */}
+      <circle r="2.6" fill={CYAN}>
+        <animateMotion dur="9s" repeatCount="indefinite" path="M200 23 a52 52 0 1 1 -0.1 0" />
+      </circle>
     </svg>
   )
 }
 
-/* ---------- 开源与协作：分支 / 合并图 ---------- */
+/* ---------- 开源与履历：GitHub 贡献格子墙 + main 分支提交流 ---------- */
 function OssArt() {
+  const CELL = 11
+  const PITCH = 14
+  const X0 = 92
+  const Y0 = 26
+  // 13 列 × 5 行的确定性「提交密度」：0 暗 / 1 微亮 / 2 蓝
+  const rows = [
+    '0102010010201',
+    '1020011200100',
+    '0210130012100',
+    '1001200110012',
+    '0120010010210'
+  ]
+  const levelFill = ['rgba(255,255,255,0.05)', 'rgba(143,180,255,0.18)', 'rgba(143,180,255,0.45)']
+  const ACTIVE_COL = 12
+  const ACTIVE_ROW = 2
   return (
     <svg className="art-svg" viewBox="0 0 400 150" fill="none" aria-hidden="true">
-      <path d="M70 75 H330" stroke="rgba(255,255,255,0.14)" strokeWidth="1.4" />
-      <path d="M150 75 C180 75 180 108 210 108 H240 C270 108 270 75 300 75"
-        stroke={BLUE_SOFT} strokeWidth="1.4" />
-      <circle cx="70" cy="75" r="5" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" />
-      <circle cx="150" cy="75" r="6" fill={BLUE} />
-      <circle cx="210" cy="108" r="5" stroke="rgba(143,180,255,0.7)" strokeWidth="1.2" />
-      <circle cx="240" cy="108" r="5" stroke="rgba(143,180,255,0.7)" strokeWidth="1.2" />
-      <circle cx="300" cy="75" r="6" fill={CYAN} />
-      <circle cx="330" cy="75" r="5" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" />
+      {rows.map((row, r) =>
+        row.split('').map((lv, c) => {
+          if (r === ACTIVE_ROW && c === ACTIVE_COL) return null // 活跃格单独画（带动画）
+          return (
+            <rect key={`${r}-${c}`} x={X0 + c * PITCH} y={Y0 + r * PITCH}
+              width={CELL} height={CELL} rx="2.5" fill={levelFill[Number(lv)]} />
+          )
+        })
+      )}
+      {/* 最新提交：最右列中间格，周期性点亮 */}
+      <rect x={X0 + ACTIVE_COL * PITCH} y={Y0 + ACTIVE_ROW * PITCH}
+        width={CELL} height={CELL} rx="2.5" fill={CYAN}>
+        <animate attributeName="opacity" values="0.25;1;0.25" dur="2.8s" repeatCount="indefinite" />
+      </rect>
+      {/* main 分支线：本地 → 远端，粒子持续滑入 */}
+      <line x1="52" y1="122" x2="348" y2="122" stroke={LINE} strokeWidth="1.3" />
+      <circle cx="52" cy="122" r="4" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" />
+      <circle cx="130" cy="122" r="3.2" fill={BLUE_SOFT} />
+      <circle cx="348" cy="122" r="4.5" fill="none" stroke={CYAN} strokeWidth="1.2" />
+      <circle r="2.8" fill={CYAN}>
+        <animateMotion dur="3.4s" repeatCount="indefinite" path="M52 122 H344" />
+      </circle>
     </svg>
   )
 }
