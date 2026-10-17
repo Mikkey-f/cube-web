@@ -43,29 +43,18 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           source: backend/target/cube-lab-backend-0.0.1.jar
-          target: /opt/cube/cube-lab-backend-0.0.1.jar
+          target: /opt/cube/
           strip_components: 2
 
-      - name: Upload frontend assets to server
+      - name: Upload frontend to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: frontend/dist/assets/*
-          target: /opt/cube/web/assets/
-          strip_components: 2
-
-      - name: Upload frontend index.html
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: frontend/dist/index.html
-          target: /opt/cube/web/index.html
+          source: frontend/dist/
+          target: /opt/cube/web/
           strip_components: 2
 
       - name: Restart backend and reload nginx
@@ -76,8 +65,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            # 清理旧的 assets 残留，避免新旧哈希文件并存
-            find /opt/cube/web/assets -maxdepth 1 -type f ! -newer /opt/cube/web/index.html -delete 2>/dev/null || true
             systemctl restart cube-backend
             sleep 6
             systemctl is-active cube-backend
@@ -92,4 +79,4 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             echo "backend: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/stats/recruit)"
-            echo "frontend: $(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/index.html)"
+            echo "frontend: $(curl -s -o /dev/null -w '%{http_code}' http://47.108.90.207/)"
