@@ -2466,13 +2466,20 @@ table.data-table {
   mask-image: linear-gradient(180deg, transparent, #000 16%, #000 84%, transparent);
 }
 
+/* 歌词框绝对定位：不参与撑高，行高由右侧黑胶决定，长歌词在框内滚动 */
 .lyric-box {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-height: 100%;
   overflow-y: auto;
   /* 上下留白用于「当前行滚到中间」的滚动效果；40% 会把首行压得太低，收紧到 28% */
   padding: 28% 8px;
   scrollbar-width: none;
+}
+
+/* 纯文本歌词没有「滚到中间」的需求，去掉那圈巨大留白 */
+.lyric-box.plain {
+  padding: 8px 8px;
 }
 
 .lyric-box::-webkit-scrollbar {

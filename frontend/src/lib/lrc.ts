@@ -55,15 +55,22 @@ export function parseLrc(raw: string): LyricLine[] {
   return parsePlainLyrics(raw)
 }
 
-/** 制作信息行（词：/曲：/编曲：…），纯文本歌词里通常会带，展示时滤掉 */
-const CREDIT_RE = /^(作词|作曲|编曲|制作人|演唱|词|曲|编)\s*[:：]/
+/**
+ * 制作信息行（作词：/作曲：/吉他：/录音工程：…），纯文本歌词里通常堆在开头。
+ * 判定：`短标签：内容` 且整行不长——避免误伤真正的歌词行。
+ */
+const CREDIT_RE = /^[^\s：:]{2,8}\s*[:：]\s*\S/
+
+function isCreditLine(line: string): boolean {
+  return CREDIT_RE.test(line) && line.length <= 40
+}
 
 function parsePlainLyrics(raw: string): LyricLine[] {
   return raw
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => l.length > 0)
-    .filter((l) => !CREDIT_RE.test(l))
+    .filter((l) => !isCreditLine(l))
     // 丢掉形如 `[ti:xxx]` 的 LRC 元信息残留
     .filter((l) => !/^\[[a-zA-Z]+:.*\]$/.test(l))
     .map((text) => ({ time: -1, text }))
