@@ -2498,6 +2498,19 @@ table.data-table {
   text-shadow: 0 0 24px rgba(79, 140, 255, 0.45);
 }
 
+/* 纯文本歌词（无时间轴）：整体调亮、字号略收，读起来像一段正文而不是待点亮列表 */
+.lyric-box.plain .lyric-line {
+  color: var(--text-dim);
+  font-size: 17px;
+  opacity: 1;
+  padding: 7px 0;
+}
+
+.lyric-box.plain .lyric-line:first-child {
+  color: var(--text);
+  font-size: 19px;
+}
+
 /* 无歌词时的占位 */
 .lyric-empty {
   width: 100%;

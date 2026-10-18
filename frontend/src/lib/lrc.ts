@@ -25,7 +25,9 @@ function tagToMs(tag: string): number | null {
 
 /**
  * 解析 LRC 文本为按时间排序的歌词行数组。
- * 无有效歌词时返回空数组。
+ * 若无任何时间标签（用户常直接上传纯文本歌词），退化为「无时间轴歌词」：
+ * 逐行返回、time 统一为 -1，前端据此渲染成静态歌词（不高亮、不自动滚动）。
+ * 完全无有效歌词时返回空数组。
  */
 export function parseLrc(raw: string): LyricLine[] {
   if (!raw) return []
@@ -44,8 +46,32 @@ export function parseLrc(raw: string): LyricLine[] {
     }
   }
 
-  lines.sort((a, b) => a.time - b.time)
-  return lines
+  if (lines.length > 0) {
+    lines.sort((a, b) => a.time - b.time)
+    return lines
+  }
+
+  // 没有时间标签 → 当纯文本歌词处理
+  return parsePlainLyrics(raw)
+}
+
+/** 制作信息行（词：/曲：/编曲：…），纯文本歌词里通常会带，展示时滤掉 */
+const CREDIT_RE = /^(作词|作曲|编曲|制作人|演唱|词|曲|编)\s*[:：]/
+
+function parsePlainLyrics(raw: string): LyricLine[] {
+  return raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .filter((l) => !CREDIT_RE.test(l))
+    // 丢掉形如 `[ti:xxx]` 的 LRC 元信息残留
+    .filter((l) => !/^\[[a-zA-Z]+:.*\]$/.test(l))
+    .map((text) => ({ time: -1, text }))
+}
+
+/** 是否为「无时间轴」歌词（纯文本上传） */
+export function isPlainLyrics(lines: LyricLine[]): boolean {
+  return lines.length > 0 && lines.every((l) => l.time < 0)
 }
 
 /**

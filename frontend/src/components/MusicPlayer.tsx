@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../api'
-import { parseLrc, activeLyricIndex, type LyricLine } from '../lib/lrc'
+import { parseLrc, activeLyricIndex, isPlainLyrics, type LyricLine } from '../lib/lrc'
 
 interface Track {
   id: number
@@ -62,10 +62,14 @@ export default function MusicPlayer() {
     return () => { dead = true }
   }, [idx, tracks])
 
-  // 播放进度 → 歌词高亮
+  // 播放进度 → 歌词高亮（纯文本歌词没有时间轴，不做高亮）
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
+    if (isPlainLyrics(lyrics)) {
+      setActiveLyric(-1)
+      return
+    }
     const onTime = () => {
       const cur = activeLyricIndex(lyrics, audio.currentTime * 1000)
       setActiveLyric((prev) => (prev === cur ? prev : cur))
@@ -160,9 +164,12 @@ export default function MusicPlayer() {
           {/* 左：歌词 */}
           <div className="vinyl-lyrics">
             {lyrics.length > 0 ? (
-              <div className="lyric-box" ref={lyricBoxRef}>
+              <div className={`lyric-box ${isPlainLyrics(lyrics) ? 'plain' : ''}`} ref={lyricBoxRef}>
                 {lyrics.map((l, i) => (
-                  <p key={i} className={`lyric-line ${i === activeLyric ? 'active' : ''}`}>{l.text}</p>
+                  <p
+                    key={i}
+                    className={`lyric-line ${isPlainLyrics(lyrics) ? '' : i === activeLyric ? 'active' : ''}`}
+                  >{l.text}</p>
                 ))}
               </div>
             ) : (

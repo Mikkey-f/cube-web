@@ -46,6 +46,18 @@ jobs:
           target: /opt/cube/
           strip_components: 2
 
+      # nginx 站点配置也纳入版本管理：先传到暂存目录，校验通过才替换线上
+      - name: Upload nginx configs to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: deploy/nginx/
+          target: /opt/cube/nginx-staging/
+          strip_components: 2
+
       - name: Upload frontend to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -56,6 +68,35 @@ jobs:
           source: frontend/dist/
           target: /opt/cube/web/
           strip_components: 2
+
+      - name: Apply nginx configs (with validation and rollback)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            VHOST=/www/server/panel/vhost/nginx
+            STAGE=/opt/cube/nginx-staging
+            BAK=/opt/cube/nginx-backup-$(date +%Y%m%d-%H%M%S)
+            mkdir -p "$BAK"
+            for f in 0.default.conf cube.conf cube-ip.conf; do
+              [ -f "$STAGE/$f" ] || { echo "missing $STAGE/$f"; exit 1; }
+              cp "$VHOST/$f" "$BAK/$f"
+              cp "$STAGE/$f" "$VHOST/$f"
+            done
+            if nginx -t; then
+              echo "nginx config OK, reloading"
+              nginx -s reload
+              echo "backup at $BAK"
+            else
+              echo "nginx -t FAILED, rolling back"
+              cp "$BAK"/*.conf "$VHOST"/
+              nginx -t && nginx -s reload
+              exit 1
+            fi
 
       - name: Restart backend and reload nginx
         uses: appleboy/ssh-action@v1.0.3
