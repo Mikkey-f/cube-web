@@ -7,6 +7,9 @@
 # ============================================================
 server:
   port: 8080
+  # 线上 nginx 用明文 http 反代到本服务，必须信任 X-Forwarded-* 才能知道「外部其实是 https」。
+  # 不配这个，Spring 会把 https 的同源请求误判成跨域 → POST 登录/注册报 403。
+  forward-headers-strategy: framework
 
 spring:
   datasource:
@@ -38,6 +41,8 @@ app:
   upload-dir: ./uploads
   music-dir: ./music
   admin:
-    # ⚠️ 首次启动会自动创建该管理员账号，上线前务必改掉
+    # ⚠️ 固定管理员账号：用户名 admin 写死在代码里，密码从这里读（不写进仓库）。
+    #    密码必须在私有 application.yml 中配置，启动时每次强制复位该账号。
+    #    如果留空或缺失，后端启动会直接失败（杜绝无密码裸奔）。
     username: admin
     password: CHANGE_ME_ADMIN_PASSWORD

@@ -40,6 +40,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody AuthRequest req) {
+        // 固定管理员账号名保留，普通注册不得占用
+        if ("admin".equalsIgnoreCase(req.username())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该用户名不可用");
+        }
         if (userRepository.existsByUsername(req.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "用户名已被占用");
         }

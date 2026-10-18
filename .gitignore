@@ -39,6 +39,8 @@ backend/data/
 *.lock.db
 # 简历 PDF 落盘目录（UUID 命名，含真实姓名/学号/联系方式）
 backend/uploads/
+# 音乐文件落盘目录（mp3/封面/歌词，运行时上传）
+backend/music/
 # 手工上传测试用的散装 PDF
 backend/*.pdf
 

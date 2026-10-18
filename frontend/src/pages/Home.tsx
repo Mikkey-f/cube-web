@@ -479,6 +479,9 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ---------- 1.5 · 背景音乐播放器（内嵌区块，logo 下方；无曲目时组件自身不渲染） ---------- */}
+      <MusicPlayer />
+
       {/* ---------- 2 · 技术栈跑马灯 ---------- */}
       <section className="stack-marquee">
         <div className="container">
@@ -614,9 +617,6 @@ export default function Home() {
 
       {/* ---------- 8.5 · 留言祝福墙（审核制） ---------- */}
       <WishWall />
-
-      {/* ---------- 8.6 · 背景音乐播放器（无曲目时组件自身不渲染） ---------- */}
-      <MusicPlayer />
 
       {/* ---------- 9 · 页脚 ---------- */}
       <footer className="footer">

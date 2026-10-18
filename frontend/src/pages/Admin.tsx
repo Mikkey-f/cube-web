@@ -25,6 +25,8 @@ interface MusicItem {
   title: string
   url: string
   size: number
+  coverUrl: string | null
+  lyricsUrl: string | null
   createdAt: string
 }
 
@@ -44,6 +46,8 @@ export default function Admin() {
   const [musics, setMusics] = useState<MusicItem[]>([])
   const [musicTitle, setMusicTitle] = useState('')
   const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [musicCover, setMusicCover] = useState<File | null>(null)
+  const [musicLrc, setMusicLrc] = useState<File | null>(null)
   const [musicUploading, setMusicUploading] = useState(false)
   const [musicTip, setMusicTip] = useState('')
 
@@ -74,9 +78,13 @@ export default function Admin() {
       const fd = new FormData()
       fd.append('title', musicTitle.trim())
       fd.append('file', musicFile)
+      if (musicCover) fd.append('cover', musicCover)
+      if (musicLrc) fd.append('lrc', musicLrc)
       await api.post('/admin/music', fd)
       setMusicTitle('')
       setMusicFile(null)
+      setMusicCover(null)
+      setMusicLrc(null)
       setMusicTip('上传成功')
       loadMusics()
     } catch (err) {
@@ -280,6 +288,22 @@ export default function Admin() {
             onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)}
             required
           />
+          <label className="music-optional">
+            <span>封面（可选）</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+              onChange={(e) => setMusicCover(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <label className="music-optional">
+            <span>歌词 .lrc（可选）</span>
+            <input
+              type="file"
+              accept=".lrc,text/plain"
+              onChange={(e) => setMusicLrc(e.target.files?.[0] ?? null)}
+            />
+          </label>
           <button className="btn btn-primary" type="submit" disabled={musicUploading || !musicTitle.trim() || !musicFile}>
             {musicUploading ? '上传中…' : '上传'}
           </button>
@@ -295,6 +319,7 @@ export default function Admin() {
                 <tr>
                   <th>标题</th>
                   <th>大小</th>
+                  <th>附件</th>
                   <th>上传时间</th>
                   <th>操作</th>
                 </tr>
@@ -304,6 +329,9 @@ export default function Admin() {
                   <tr key={item.id}>
                     <td>{item.title}</td>
                     <td style={{ color: 'var(--text-dim)' }}>{(item.size / 1024 / 1024).toFixed(1)} MB</td>
+                    <td style={{ color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                      {item.coverUrl ? '封面' : '—'} / {item.lyricsUrl ? '歌词' : '—'}
+                    </td>
                     <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{item.createdAt}</td>
                     <td>
                       <button className="btn btn-sm btn-danger" onClick={() => removeMusic(item)}>删除</button>

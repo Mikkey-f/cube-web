@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../api'
+import { parseLrc, activeLyricIndex, type LyricLine } from '../lib/lrc'
 
 interface Track {
   id: number
   title: string
   url: string
   size: number
+  coverUrl: string | null
+  lyricsUrl: string | null
   createdAt: string
 }
 
@@ -13,18 +16,19 @@ interface Track {
 const BURST = ['#4f8cff', '#22d3ee', '#9d4dff', '#eaf6ff']
 
 /**
- * 首页背景音乐播放器 —— 「科幻古典 CD」质感。
- * - 中央一张旋转的镭射唱片（播放时转、暂停停），外圈轨道环 + 频谱条
- * - 切歌时唱片甩出 + 粒子爆开，换轨特效
- * - preload="metadata"：只加载元数据不整首下载，省带宽
+ * 首页背景音乐播放器 —— 「科幻古典 CD」质感，内嵌版。
+ * 固定在首页 logo 区域下方的独立区块，两栏结构：左歌词 / 右黑胶（带封面）。
+ * 歌词、封面均为可选；无歌词时左侧显示歌名大字占位。
  */
 export default function MusicPlayer() {
   const [tracks, setTracks] = useState<Track[]>([])
   const [idx, setIdx] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [burst, setBurst] = useState(0) // 递增触发切歌粒子
+  const [lyrics, setLyrics] = useState<LyricLine[]>([])
+  const [activeLyric, setActiveLyric] = useState(-1)
   const audioRef = useRef<HTMLAudioElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const lyricBoxRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef(0)
 
   useEffect(() => {
@@ -42,7 +46,42 @@ export default function MusicPlayer() {
     audio.src = tracks[idx].url
     audio.load()
     setPlaying(false)
+    setActiveLyric(-1)
   }, [idx, tracks])
+
+  // 加载当前曲目的歌词（可选）
+  useEffect(() => {
+    if (tracks.length === 0) { setLyrics([]); return }
+    const lrcUrl = tracks[idx].lyricsUrl
+    if (!lrcUrl) { setLyrics([]); return }
+    let dead = false
+    fetch(lrcUrl)
+      .then((r) => r.text())
+      .then((txt) => { if (!dead) setLyrics(parseLrc(txt)) })
+      .catch(() => { if (!dead) setLyrics([]) })
+    return () => { dead = true }
+  }, [idx, tracks])
+
+  // 播放进度 → 歌词高亮
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const onTime = () => {
+      const cur = activeLyricIndex(lyrics, audio.currentTime * 1000)
+      setActiveLyric((prev) => (prev === cur ? prev : cur))
+    }
+    audio.addEventListener('timeupdate', onTime)
+    return () => audio.removeEventListener('timeupdate', onTime)
+  }, [lyrics])
+
+  // 当前行滚动到可视区中间
+  useEffect(() => {
+    const box = lyricBoxRef.current
+    if (!box) return
+    const el = box.querySelector<HTMLElement>('.lyric-line.active')
+    if (!el) return
+    box.scrollTo({ top: el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2, behavior: 'smooth' })
+  }, [activeLyric])
 
   const toggle = () => {
     const audio = audioRef.current
@@ -64,7 +103,6 @@ export default function MusicPlayer() {
 
   /** 切歌粒子：在播放器周围爆一圈彩点 */
   const fireBurst = () => {
-    setBurst((b) => b + 1)
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
@@ -113,51 +151,61 @@ export default function MusicPlayer() {
   const track = tracks[idx]
 
   return (
-    <div className="music-player">
-      {/* 切歌粒子画布 */}
+    <section className="player-section">
+      {/* 切歌粒子画布（铺满视口） */}
       <canvas className="music-burst" ref={canvasRef} aria-hidden="true" />
 
-      {/* 科幻 CD：外圈轨道环 + 旋转唱片 */}
-      <div className={`cd ${playing ? 'spinning' : ''}`} key={`cd-${idx}`} onClick={toggle}>
-        <div className="cd-ring" />
-        <div className="cd-disc">
-          <div className="cd-grooves" />
-          <div className="cd-label">
-            <span className="cd-label-core" />
+      <div className="container">
+        <div className="player-shell">
+          {/* 左：歌词 */}
+          <div className="vinyl-lyrics">
+            {lyrics.length > 0 ? (
+              <div className="lyric-box" ref={lyricBoxRef}>
+                {lyrics.map((l, i) => (
+                  <p key={i} className={`lyric-line ${i === activeLyric ? 'active' : ''}`}>{l.text}</p>
+                ))}
+              </div>
+            ) : (
+              <div className="lyric-empty">
+                <span className="lyric-empty-title">{track.title}</span>
+                <span className="lyric-empty-sub">暂无歌词 · 点击右侧黑胶播放</span>
+              </div>
+            )}
+          </div>
+
+          {/* 右：黑胶 + 封面 + 控制 */}
+          <div className="vinyl-right">
+            <div className={`vinyl-cd ${playing ? 'spinning' : ''}`} key={`vinyl-${idx}`} onClick={toggle}>
+              <div className="vinyl-cd-ring" />
+              <div className="vinyl-cd-disc">
+                <div className="vinyl-cd-grooves" />
+                <div className="vinyl-cd-label">
+                  {track.coverUrl ? <img src={track.coverUrl} alt={track.title} /> : <span className="cd-label-core" />}
+                </div>
+              </div>
+              <div className="vinyl-cd-glint" />
+            </div>
+            <div className="vinyl-title">{track.title}</div>
+            <div className="vinyl-controls">
+              <button className="music-btn" onClick={() => next(-1)} aria-label="上一首">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM18 6l-8 6 8 6z" /></svg>
+              </button>
+              <button className="music-btn play" onClick={toggle} aria-label={playing ? '暂停' : '播放'}>
+                {playing ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                )}
+              </button>
+              <button className="music-btn" onClick={() => next(1)} aria-label="下一首">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8 6-8 6z" /></svg>
+              </button>
+            </div>
           </div>
         </div>
-        <div className="cd-glint" />
-      </div>
-
-      {/* 频谱条 */}
-      <div className="spectrum" aria-hidden="true">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <span key={i} className={playing ? 'eq on' : 'eq'} style={{ animationDelay: `${i * 0.08}s` }} />
-        ))}
-      </div>
-
-      {/* 控制区 */}
-      <div className="music-info">
-        <span className="music-title">{track.title}</span>
-        <span className="music-meta">{tracks.length} 首 · 背景音乐</span>
-      </div>
-      <div className="music-controls">
-        <button className="music-btn" onClick={() => next(-1)} aria-label="上一首">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM18 6l-8 6 8 6z" /></svg>
-        </button>
-        <button className="music-btn play" onClick={toggle} aria-label={playing ? '暂停' : '播放'}>
-          {playing ? (
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
-          ) : (
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-          )}
-        </button>
-        <button className="music-btn" onClick={() => next(1)} aria-label="下一首">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8 6-8 6z" /></svg>
-        </button>
       </div>
 
       <audio ref={audioRef} preload="metadata" onEnded={() => next(1)} />
-    </div>
+    </section>
   )
 }

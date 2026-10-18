@@ -32,6 +32,14 @@ public class Music {
     @Column(nullable = false)
     private long size;
 
+    /** 封面图存储文件名（可选，UUID.jpg/png） */
+    @Column(nullable = true)
+    private String coverFilename;
+
+    /** 歌词存储文件名（可选，UUID.lrc） */
+    @Column(nullable = true)
+    private String lyricsFilename;
+
     /** 排序权重，越大越靠前 */
     @Column(nullable = false)
     private int sortOrder = 0;
@@ -81,6 +89,22 @@ public class Music {
 
     public void setSortOrder(int sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    public String getCoverFilename() {
+        return coverFilename;
+    }
+
+    public void setCoverFilename(String coverFilename) {
+        this.coverFilename = coverFilename;
+    }
+
+    public String getLyricsFilename() {
+        return lyricsFilename;
+    }
+
+    public void setLyricsFilename(String lyricsFilename) {
+        this.lyricsFilename = lyricsFilename;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -35,14 +35,21 @@ public class MusicController {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     /** 单曲上限 15MB，总配额靠管理端自行控制 */
     private static final long MAX_MUSIC_SIZE = 15L * 1024 * 1024;
+    /** 封面图上限 5MB */
+    private static final long MAX_COVER_SIZE = 5L * 1024 * 1024;
+    /** 歌词上限 256KB（远大于实际歌词量） */
+    private static final long MAX_LRC_SIZE = 256L * 1024;
 
-    public record MusicResponse(Long id, String title, String url, long size, String createdAt) {
+    public record MusicResponse(Long id, String title, String url, long size,
+                                String coverUrl, String lyricsUrl, String createdAt) {
         static MusicResponse from(Music m) {
             return new MusicResponse(
                     m.getId(),
                     m.getTitle(),
                     "/music/" + m.getFilename(),
                     m.getSize(),
+                    m.getCoverFilename() == null ? null : "/music/" + m.getCoverFilename(),
+                    m.getLyricsFilename() == null ? null : "/music/" + m.getLyricsFilename(),
                     m.getCreatedAt().format(FMT));
         }
     }
@@ -65,11 +72,13 @@ public class MusicController {
                 .toList();
     }
 
-    /** 管理员上传 MP3 */
+    /** 管理员上传 MP3（可附带封面图与歌词，均为可选） */
     @PostMapping(value = "/admin/music", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MusicResponse> upload(
             @RequestParam @NotBlank(message = "标题不能为空") @Size(max = 64) String title,
-            @RequestPart("file") MultipartFile file) throws IOException {
+            @RequestPart("file") MultipartFile file,
+            @RequestPart(value = "cover", required = false) MultipartFile cover,
+            @RequestPart(value = "lrc", required = false) MultipartFile lrc) throws IOException {
 
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择 MP3 文件");
@@ -94,6 +103,32 @@ public class MusicController {
         m.setOriginalName(name == null ? "music.mp3" : name);
         m.setSize(file.getSize());
         m.setSortOrder(0);
+
+        // 封面图（可选）：jpg/png/webp
+        if (cover != null && !cover.isEmpty()) {
+            if (cover.getSize() > MAX_COVER_SIZE) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "封面图不能超过 5MB");
+            }
+            String cn = cover.getOriginalFilename();
+            String ext = (cn != null && cn.contains(".")) ? cn.substring(cn.lastIndexOf('.') + 1).toLowerCase() : "jpg";
+            if (!ext.matches("(jpg|jpeg|png|webp)")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "封面仅支持 jpg/png/webp");
+            }
+            String cstored = UUID.randomUUID() + "." + ext;
+            Files.write(musicDir.resolve(cstored), cover.getBytes());
+            m.setCoverFilename(cstored);
+        }
+
+        // 歌词（可选）：.lrc 纯文本
+        if (lrc != null && !lrc.isEmpty()) {
+            if (lrc.getSize() > MAX_LRC_SIZE) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "歌词文件过大");
+            }
+            String lstored = UUID.randomUUID() + ".lrc";
+            Files.write(musicDir.resolve(lstored), lrc.getBytes());
+            m.setLyricsFilename(lstored);
+        }
+
         musicRepository.save(m);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(MusicResponse.from(m));
@@ -105,12 +140,16 @@ public class MusicController {
         Music m = musicRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "曲目不存在"));
         musicRepository.delete(m);
-        Path file = musicDir.resolve(m.getFilename()).normalize();
-        if (file.startsWith(musicDir)) {
-            try {
-                Files.deleteIfExists(file);
-            } catch (IOException e) {
-                log.warn("音乐文件删除失败: {}", file, e);
+        // 清除主文件 + 封面 + 歌词
+        for (String fn : new String[]{m.getFilename(), m.getCoverFilename(), m.getLyricsFilename()}) {
+            if (fn == null) continue;
+            Path file = musicDir.resolve(fn).normalize();
+            if (file.startsWith(musicDir)) {
+                try {
+                    Files.deleteIfExists(file);
+                } catch (IOException e) {
+                    log.warn("音乐文件删除失败: {}", file, e);
+                }
             }
         }
         return ResponseEntity.noContent().build();

@@ -9,6 +9,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true
+      },
+      // 音乐静态文件：生产由 nginx 直出，本地走后端 WebConfig 的 /music/** 映射
+      '/music': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
       }
     }
   },

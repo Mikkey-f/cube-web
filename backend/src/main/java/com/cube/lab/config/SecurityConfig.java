@@ -42,6 +42,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/messages/approved").permitAll()
                         // 背景音乐：公开拉取曲目元数据
                         .requestMatchers(HttpMethod.GET, "/api/music").permitAll()
+                        // 本地开发没有 nginx，音乐文件由 WebConfig 的静态映射直出，同样公开
+                        .requestMatchers(HttpMethod.GET, "/music/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())
@@ -63,11 +65,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // 开发环境放开本地前端端口；上线后改为正式域名
-        config.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        // 开发：本地前端端口；生产：正式域名与裸 IP。
+        // ⚠️ 生产的 https 源必须列出来，原因见下方注释：nginx 反代到后端是明文 http，
+        // Spring 会把「同源的 https 请求」误判成跨域，Origin 不在白名单就直接 403。
+        config.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "http://127.0.0.1:*",
+                "https://cubelab.ink",
+                "https://www.cubelab.ink",
+                "https://47.108.90.207"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Content-Disposition"));
         config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
