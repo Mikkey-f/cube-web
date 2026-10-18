@@ -2360,11 +2360,111 @@ table.data-table {
 /* ---------- 背景音乐播放器（内嵌区块，科幻古典 CD） ---------- */
 .player-section {
   position: relative;
-  padding: 40px 0 24px;
+  padding: 74px 0 40px;
   border-top: 1px solid var(--hairline);
   background:
     radial-gradient(90% 120% at 50% 0%, rgba(79, 140, 255, 0.06), transparent 60%),
     var(--bg-soft);
+}
+
+/* ---------- 区块头：留白 + 流光标题 ---------- */
+.player-head {
+  position: relative;
+  padding: 0 0 74px;
+}
+
+.player-now {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.player-now .eyebrow {
+  margin-bottom: 0;
+}
+
+/* 播放状态均衡器：4 根跳动的竖条，暂停时压平 */
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+}
+
+.eq i {
+  display: block;
+  width: 2.5px;
+  height: 100%;
+  border-radius: 1px;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  transform: scaleY(0.18);
+  transform-origin: bottom center;
+  opacity: 0.35;
+  transition: opacity 0.4s var(--ease);
+}
+
+.eq.on i {
+  opacity: 0.95;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.5);
+  animation: eq-bounce 1.1s ease-in-out infinite;
+}
+
+.eq.on i:nth-child(2) { animation-duration: 0.82s; animation-delay: -0.3s; }
+.eq.on i:nth-child(3) { animation-duration: 1.34s; animation-delay: -0.6s; }
+.eq.on i:nth-child(4) { animation-duration: 0.95s; animation-delay: -0.15s; }
+
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.22); }
+  50% { transform: scaleY(1); }
+}
+
+/* 标题：蓝→青→白 的渐变文字 + 缓慢横向流光 + 整体外发光 */
+.player-heading {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.4vw, 60px);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(100deg,
+    #ffffff 0%,
+    #ffffff 18%,
+    #dbe6ff 24%,
+    var(--accent) 30%,
+    var(--accent-2) 36%,
+    #e6efff 42%,
+    #ffffff 50%,
+    #ffffff 66%,
+    #dbe6ff 72%,
+    var(--accent) 78%,
+    var(--accent-2) 84%,
+    #e6efff 90%,
+    #ffffff 100%);
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: title-sheen 12s linear infinite;
+  filter: drop-shadow(0 0 16px rgba(79, 140, 255, 0.45)) drop-shadow(0 0 44px rgba(34, 211, 238, 0.22));
+}
+
+@keyframes title-sheen {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+/* 标题里的「代码」：换成品牌蓝 + 光晕，形成视觉重音 */
+.player-heading .ph-code {
+  position: relative;
+  color: var(--accent);
+  text-shadow: 0 0 30px rgba(79, 140, 255, 0.85);
+}
+
+/* 句号：青色光点 */
+.player-heading .ph-dot {
+  color: var(--accent-2);
+  text-shadow: 0 0 18px rgba(34, 211, 238, 0.75);
 }
 
 .player-shell {
@@ -2551,13 +2651,66 @@ table.data-table {
   min-width: 0;
 }
 
-/* 大黑胶：外圈轨道 + 唱片本体（宽度 = 右栏/左栏等宽，纵向用 56vh 兜底防溢出） */
-.vinyl-cd {
+/* 唱片台：黑胶 + 唱臂共用的定位容器（尺寸与之前的黑胶一致） */
+.vinyl-deck {
   position: relative;
   width: min(100%, 56vh);
   aspect-ratio: 1;
   flex: none;
+  /* 唱片上方留白：唱臂轴心还要往上探 8%，这里补一点呼吸感 */
+  margin-top: 8px;
+}
+
+/* 大黑胶：外圈轨道 + 唱片本体（宽度 = 右栏/左栏等宽，纵向用 56vh 兜底防溢出） */
+.vinyl-cd {
+  position: absolute;
+  inset: 0;
   cursor: pointer;
+}
+
+/* 白色唱臂：绕轴心球摆动。暂停时抬起外摆，播放时落到纹路上 */
+.tonearm {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+  transform-origin: 60% 4%;
+  transform: rotate(-11deg);
+  transition: transform 0.95s var(--ease-out), filter 0.6s var(--ease);
+  filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.5));
+}
+
+/* 落针：阴影收紧（贴住唱片），轴心透一点冷光呼应旋转 */
+.tonearm.on {
+  transform: rotate(0deg);
+  filter: drop-shadow(0 5px 4px rgba(0, 0, 0, 0.62));
+}
+
+.tonearm-bar {
+  fill: none;
+  stroke: url(#tmPaint);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.tonearm-head {
+  fill: url(#tmPaint);
+}
+
+.tonearm-stylus {
+  fill: #f4f8fd;
+  opacity: 0.92;
+}
+
+.tonearm-ball {
+  fill: url(#tmBall);
+}
+
+.tonearm.on .tonearm-ball {
+  filter: drop-shadow(0 0 3.5px rgba(34, 211, 238, 0.9));
 }
 
 .vinyl-cd-ring {
@@ -2691,8 +2844,15 @@ table.data-table {
     order: 0;
     gap: 16px;
   }
-  .vinyl-cd {
+  .vinyl-deck {
     width: min(200px, 42vw);
+    margin-top: 4px;
+  }
+  .player-head {
+    padding-bottom: 52px;
+  }
+  .player-heading {
+    font-size: clamp(26px, 7.4vw, 34px);
   }
   .lyric-line {
     font-size: 16px;

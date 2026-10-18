@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import api from '../api'
+import Reveal from './Reveal'
 import { parseLrc, activeLyricIndex, isPlainLyrics, type LyricLine } from '../lib/lrc'
 
 interface Track {
@@ -160,6 +161,23 @@ export default function MusicPlayer() {
       <canvas className="music-burst" ref={canvasRef} aria-hidden="true" />
 
       <div className="container">
+        {/* 区块头：上方留白 + 渐变流光标题（播放时右侧均衡器跳动） */}
+        <div className="player-head">
+          <Reveal>
+            <div className="player-now">
+              <span className="eyebrow">Now playing</span>
+              <span className={`eq ${playing ? 'on' : ''}`} aria-hidden="true">
+                <i /><i /><i /><i />
+              </span>
+            </div>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <h2 className="player-heading">
+              我们懂<span className="ph-code">代码</span>，也爱听歌<span className="ph-dot">。</span>
+            </h2>
+          </Reveal>
+        </div>
+
         <div className="player-shell">
           {/* 左：歌词 */}
           <div className="vinyl-lyrics">
@@ -180,17 +198,44 @@ export default function MusicPlayer() {
             )}
           </div>
 
-          {/* 右：黑胶 + 封面 + 控制 */}
+          {/* 右：黑胶 + 唱臂 + 封面 + 控制 */}
           <div className="vinyl-right">
-            <div className={`vinyl-cd ${playing ? 'spinning' : ''}`} key={`vinyl-${idx}`} onClick={toggle}>
-              <div className="vinyl-cd-ring" />
-              <div className="vinyl-cd-disc">
-                <div className="vinyl-cd-grooves" />
-                <div className="vinyl-cd-label">
-                  {track.coverUrl ? <img src={track.coverUrl} alt={track.title} /> : <span className="cd-label-core" />}
+            <div className="vinyl-deck" key={`vinyl-${idx}`}>
+              <div className={`vinyl-cd ${playing ? 'spinning' : ''}`} onClick={toggle}>
+                <div className="vinyl-cd-ring" />
+                <div className="vinyl-cd-disc">
+                  <div className="vinyl-cd-grooves" />
+                  <div className="vinyl-cd-label">
+                    {track.coverUrl ? <img src={track.coverUrl} alt={track.title} /> : <span className="cd-label-core" />}
+                  </div>
                 </div>
+                <div className="vinyl-cd-glint" />
               </div>
-              <div className="vinyl-cd-glint" />
+
+              {/* 白色唱臂：绕轴心球摆动，播放时落到唱片纹路上 */}
+              <svg className={`tonearm ${playing ? 'on' : ''}`} viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                <defs>
+                  <linearGradient id="tmPaint" x1="0" y1="0" x2="0.8" y2="1">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="48%" stopColor="#e9eef5" />
+                    <stop offset="100%" stopColor="#aeb9c7" />
+                  </linearGradient>
+                  <radialGradient id="tmBall" cx="34%" cy="26%" r="76%">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="66%" stopColor="#e1e7ef" />
+                    <stop offset="100%" stopColor="#a4afbe" />
+                  </radialGradient>
+                </defs>
+                {/* 臂杆 */}
+                <path className="tonearm-bar" d="M60 4 C 62 16, 68 30, 79 45" />
+                {/* 唱头 + 唱针（沿臂方向再延伸一小段） */}
+                <g transform="translate(79 45) rotate(-37)">
+                  <rect className="tonearm-head" x="-2.7" y="-1.6" width="5.4" height="9.2" rx="1.4" />
+                  <rect className="tonearm-stylus" x="-1" y="7.6" width="2" height="3" rx="0.5" />
+                </g>
+                {/* 轴心球 */}
+                <circle className="tonearm-ball" cx="60" cy="4" r="3.3" />
+              </svg>
             </div>
             <div className="vinyl-title">{track.title}</div>
             <div className="vinyl-controls">
