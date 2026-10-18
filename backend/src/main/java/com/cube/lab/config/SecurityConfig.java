@@ -40,6 +40,8 @@ public class SecurityConfig {
                         // 祝福墙：提交留言与拉取已审核留言公开；审核管理走 /api/admin/** 需 ADMIN
                         .requestMatchers(HttpMethod.POST, "/api/messages").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/messages/approved").permitAll()
+                        // 背景音乐：公开拉取曲目元数据
+                        .requestMatchers(HttpMethod.GET, "/api/music").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated())

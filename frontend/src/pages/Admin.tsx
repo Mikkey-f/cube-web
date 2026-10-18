@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import api, { errorMessage } from '../api'
 
 interface ApplicationItem {
@@ -20,6 +20,14 @@ interface MessageItem {
   createdAt: string
 }
 
+interface MusicItem {
+  id: number
+  title: string
+  url: string
+  size: number
+  createdAt: string
+}
+
 export default function Admin() {
   const [list, setList] = useState<ApplicationItem[]>([])
   const [error, setError] = useState('')
@@ -32,6 +40,13 @@ export default function Admin() {
   const [msgLoading, setMsgLoading] = useState(true)
   const [reviewingId, setReviewingId] = useState<number | null>(null)
 
+  // 背景音乐管理
+  const [musics, setMusics] = useState<MusicItem[]>([])
+  const [musicTitle, setMusicTitle] = useState('')
+  const [musicFile, setMusicFile] = useState<File | null>(null)
+  const [musicUploading, setMusicUploading] = useState(false)
+  const [musicTip, setMusicTip] = useState('')
+
   useEffect(() => {
     api.get('/admin/applications')
       .then((res) => setList(res.data))
@@ -41,7 +56,45 @@ export default function Admin() {
       .then((res) => setMessages(res.data))
       .catch((err) => setError(errorMessage(err)))
       .finally(() => setMsgLoading(false))
+    loadMusics()
   }, [])
+
+  function loadMusics() {
+    api.get<MusicItem[]>('/music')
+      .then((res) => setMusics(res.data))
+      .catch(() => {})
+  }
+
+  async function uploadMusic(e: FormEvent) {
+    e.preventDefault()
+    if (!musicFile || !musicTitle.trim() || musicUploading) return
+    setMusicUploading(true)
+    setMusicTip('')
+    try {
+      const fd = new FormData()
+      fd.append('title', musicTitle.trim())
+      fd.append('file', musicFile)
+      await api.post('/admin/music', fd)
+      setMusicTitle('')
+      setMusicFile(null)
+      setMusicTip('上传成功')
+      loadMusics()
+    } catch (err) {
+      setMusicTip(errorMessage(err))
+    } finally {
+      setMusicUploading(false)
+    }
+  }
+
+  async function removeMusic(item: MusicItem) {
+    if (!confirm(`确定删除「${item.title}」吗？音乐文件会一并清除。`)) return
+    try {
+      await api.delete(`/admin/music/${item.id}`)
+      setMusics((prev) => prev.filter((x) => x.id !== item.id))
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
 
   async function reviewMessage(item: MessageItem, approved: boolean) {
     setReviewingId(item.id)
@@ -198,6 +251,62 @@ export default function Admin() {
                         disabled={reviewingId === item.id}>
                         删除
                       </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ---------- 背景音乐管理 ---------- */}
+        <h2 className="section-title" style={{ marginTop: 72 }}>背景音乐 <span className="title-glow">曲库管理</span></h2>
+        <p className="section-sub">上传 MP3 到首页播放器（单曲 ≤15MB，建议 128kbps 以省带宽）</p>
+
+        <form className="music-form" onSubmit={uploadMusic}>
+          <input
+            className="wish-input"
+            type="text"
+            value={musicTitle}
+            onChange={(e) => setMusicTitle(e.target.value)}
+            placeholder="曲目标题"
+            maxLength={64}
+            required
+          />
+          <input
+            className="music-file"
+            type="file"
+            accept="audio/mpeg,.mp3"
+            onChange={(e) => setMusicFile(e.target.files?.[0] ?? null)}
+            required
+          />
+          <button className="btn btn-primary" type="submit" disabled={musicUploading || !musicTitle.trim() || !musicFile}>
+            {musicUploading ? '上传中…' : '上传'}
+          </button>
+        </form>
+        {musicTip && <p className={`wish-tip ${musicTip === '上传成功' ? 'ok' : 'err'}`}>{musicTip}</p>}
+
+        {musics.length === 0 ? (
+          <div className="empty-state" style={{ marginTop: 16 }}>曲库为空，上传第一首背景音乐吧</div>
+        ) : (
+          <div className="table-wrap" style={{ marginTop: 16 }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>标题</th>
+                  <th>大小</th>
+                  <th>上传时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {musics.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.title}</td>
+                    <td style={{ color: 'var(--text-dim)' }}>{(item.size / 1024 / 1024).toFixed(1)} MB</td>
+                    <td style={{ whiteSpace: 'nowrap', color: 'var(--text-dim)' }}>{item.createdAt}</td>
+                    <td>
+                      <button className="btn btn-sm btn-danger" onClick={() => removeMusic(item)}>删除</button>
                     </td>
                   </tr>
                 ))}

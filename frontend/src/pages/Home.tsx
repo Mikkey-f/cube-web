@@ -12,6 +12,7 @@ import CubeScene from '../components/CubeScene'
 import Reveal from '../components/Reveal'
 import RecruitPulse from '../components/RecruitPulse'
 import WishWall from '../components/WishWall'
+import MusicPlayer from '../components/MusicPlayer'
 import { HexBadge, HexDivider } from '../components/Hex'
 import { DirectionArt, StepPanel } from '../components/MiniUI'
 
@@ -613,6 +614,9 @@ export default function Home() {
 
       {/* ---------- 8.5 · 留言祝福墙（审核制） ---------- */}
       <WishWall />
+
+      {/* ---------- 8.6 · 背景音乐播放器（无曲目时组件自身不渲染） ---------- */}
+      <MusicPlayer />
 
       {/* ---------- 9 · 页脚 ---------- */}
       <footer className="footer">

@@ -36,6 +36,7 @@ app:
   jwt-secret: CHANGE_ME_TO_A_LONG_RANDOM_SECRET_AT_LEAST_64_CHARS_0123456789abcdef
   jwt-expiration-ms: 86400000
   upload-dir: ./uploads
+  music-dir: ./music
   admin:
     # ⚠️ 首次启动会自动创建该管理员账号，上线前务必改掉
     username: admin

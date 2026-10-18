@@ -2309,6 +2309,39 @@ table.data-table {
   background: var(--accent-2-soft);
 }
 
+/* ---------- 管理后台：音乐上传表单 ---------- */
+.music-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.music-form .wish-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.music-file {
+  flex: none;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.music-file::file-selector-button {
+  padding: 10px 16px;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.music-file::file-selector-button:hover {
+  border-color: var(--accent);
+}
+
 @media (max-width: 640px) {
   .wish-form {
     flex-direction: column;
@@ -2321,5 +2354,235 @@ table.data-table {
   }
   .pulse-num {
     font-size: 44px;
+  }
+}
+
+/* ---------- 背景音乐播放器（科幻古典 CD） ---------- */
+.music-player {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 34px 40px;
+  border-top: 1px solid var(--hairline);
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+/* 切歌粒子画布：铺满视口、不挡点击 */
+.music-burst {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* 科幻 CD：外圈轨道环 + 旋转镭射唱片 */
+.cd {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cd-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--hairline-2);
+}
+
+.cd-ring::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px dashed rgba(79, 140, 255, 0.35);
+  animation: cd-orbit 12s linear infinite;
+}
+
+@keyframes cd-orbit {
+  to { transform: rotate(360deg); }
+}
+
+.cd-disc {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #3a4150, #14161c 70%);
+  box-shadow: 0 0 18px -4px rgba(34, 211, 238, 0.45), inset 0 0 12px rgba(0, 0, 0, 0.8);
+  animation: cd-spin 4s linear infinite;
+  animation-play-state: paused;
+}
+
+.cd.spinning .cd-disc {
+  animation-play-state: running;
+}
+
+@keyframes cd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 唱片纹理：同心圆槽 */
+.cd-grooves {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle at 50% 50%,
+    rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px);
+  opacity: 0.7;
+}
+
+/* 唱片中心标签 */
+.cd-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #9d4dff, #4f8cff 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cd-label-core {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0e0f11;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+/* 唱片高光扫过 */
+.cd-glint {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 40%);
+  pointer-events: none;
+}
+
+/* 频谱条 */
+.spectrum {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+}
+
+.eq {
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--hairline-2);
+  transition: background 0.3s;
+}
+
+.eq.on {
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  animation: eq-bounce 0.7s ease-in-out infinite;
+}
+
+@keyframes eq-bounce {
+  0%, 100% { height: 8px; }
+  50% { height: 26px; }
+}
+
+/* 信息区 */
+.music-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.music-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-meta {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* 控制按钮 */
+.music-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.music-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline-2);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.25s, border-color 0.25s, background 0.25s;
+}
+
+.music-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.music-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.music-btn.play {
+  width: 46px;
+  height: 46px;
+  background: linear-gradient(120deg, var(--accent-deep), var(--accent) 58%, #5ad6ef);
+  border-color: transparent;
+  color: #fff;
+}
+
+.music-btn.play svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 640px) {
+  .music-player {
+    gap: 14px;
+    padding: 24px 18px;
+  }
+  .cd {
+    width: 56px;
+    height: 56px;
+  }
+  .music-title {
+    font-size: 13px;
+  }
+  .music-controls {
+    gap: 2px;
+  }
+  .music-btn {
+    width: 30px;
+    height: 30px;
+  }
+  .music-btn.play {
+    width: 40px;
+    height: 40px;
   }
 }
