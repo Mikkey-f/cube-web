@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { animate, useReducedMotion } from 'framer-motion'
 import api from '../api'
+import { startVisiblePoll } from '../lib/poll'
 
 /** 里程碑阶梯：数字跨过其中一档时触发一次粒子庆祝 */
 const MILESTONES = [10, 25, 50, 100, 200, 500]
@@ -52,10 +53,11 @@ export default function RecruitPulse() {
       }
     }
     load()
-    const timer = setInterval(load, POLL_MS)
+    // 页面在后台（切标签页/锁屏）时完全不发请求；回到前台立刻补拉一次
+    const stop = startVisiblePoll(load, POLL_MS)
     return () => {
       dead = true
-      clearInterval(timer)
+      stop()
     }
   }, [])
 

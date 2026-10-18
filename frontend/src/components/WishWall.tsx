@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useReducedMotion } from 'framer-motion'
 import api, { errorMessage } from '../api'
+import { startVisiblePoll } from '../lib/poll'
 import Reveal from './Reveal'
 
 /** 跑马灯轮询间隔：留言更新不追求秒级，60s 足够 */
@@ -53,10 +54,11 @@ export default function WishWall() {
       }
     }
     load()
-    const timer = setInterval(load, POLL_MS)
+    // 页面在后台（切标签页/锁屏）时完全不发请求；回到前台立刻补拉一次
+    const stop = startVisiblePoll(load, POLL_MS)
     return () => {
       dead = true
-      clearInterval(timer)
+      stop()
     }
   }, [])
 
