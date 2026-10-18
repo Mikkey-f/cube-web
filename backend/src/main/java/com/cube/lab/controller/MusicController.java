@@ -2,6 +2,7 @@ package com.cube.lab.controller;
 
 import com.cube.lab.entity.Music;
 import com.cube.lab.repository.MusicRepository;
+import com.cube.lab.util.CoverImageProcessor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.slf4j.Logger;
@@ -114,8 +115,19 @@ public class MusicController {
             if (!ext.matches("(jpg|jpeg|png|webp)")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "封面仅支持 jpg/png/webp");
             }
-            String cstored = UUID.randomUUID() + "." + ext;
-            Files.write(musicDir.resolve(cstored), cover.getBytes());
+            String cstored;
+            byte[] coverBytes;
+            // 落盘前压一次：封面上只显示在约 220px 的圆里，没必要让访客下载几百 KB 原图。
+            // 压不了（格式不支持 / 压完更大 / 不含可压空间）就按原样存，行为与改动前一致。
+            CoverImageProcessor.Result optimized = CoverImageProcessor.process(cover.getBytes());
+            if (optimized != null) {
+                coverBytes = optimized.data();
+                cstored = UUID.randomUUID() + "." + optimized.ext();
+            } else {
+                coverBytes = cover.getBytes();
+                cstored = UUID.randomUUID() + "." + ext;
+            }
+            Files.write(musicDir.resolve(cstored), coverBytes);
             m.setCoverFilename(cstored);
         }
 

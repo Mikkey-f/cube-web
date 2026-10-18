@@ -41,6 +41,8 @@ backend/data/
 backend/uploads/
 # 音乐文件落盘目录（mp3/封面/歌词，运行时上传）
 backend/music/
+# 封面压缩前的原图备份（CoverMigrationRunner 生成）
+backend/music-orig/
 # 手工上传测试用的散装 PDF
 backend/*.pdf
 

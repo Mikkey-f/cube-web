@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link } from 'react-router-dom'
 import {
   motion,
@@ -8,13 +8,20 @@ import {
   useTransform,
   type Variants
 } from 'framer-motion'
-import CubeScene from '../components/CubeScene'
 import Reveal from '../components/Reveal'
 import RecruitPulse from '../components/RecruitPulse'
 import WishWall from '../components/WishWall'
 import MusicPlayer from '../components/MusicPlayer'
 import { HexBadge, HexDivider } from '../components/Hex'
 import { DirectionArt, StepPanel } from '../components/MiniUI'
+
+/**
+ * three.js 连同后期管线约 480KB，改成动态导入后：
+ * 1) 它不再进入 entry 的静态依赖图 —— /login、/apply、/admin 等页面完全不会下载它；
+ * 2) 首页由 Suspense 在首帧之后异步补上，不再阻塞页面挂载。
+ * 渲染结果与之前完全一致（同一个组件、同样的挂载点与尺寸）。
+ */
+const CubeScene = lazy(() => import('../components/CubeScene'))
 
 /* ============================================================
    内容数据
@@ -448,7 +455,9 @@ export default function Home() {
       {/* ---------- 1 · Hero：左文案 / 右 cube ---------- */}
       <section className="hero">
         <motion.div className="hero-canvas" style={{ opacity: cubeOpacity, y: cubeY }}>
-          <CubeScene />
+          <Suspense fallback={null}>
+            <CubeScene />
+          </Suspense>
         </motion.div>
         <div className="hero-wash" />
 
