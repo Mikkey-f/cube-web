@@ -87,8 +87,8 @@ public class ApplicationController {
     public ResponseEntity<ApplicationResponse> submit(
             Authentication auth,
             @RequestParam @NotBlank(message = "姓名不能为空") @Size(max = 64) String realName,
-            @RequestParam(required = false) @Size(max = 64) String studentId,
-            @RequestParam(required = false) @Size(max = 32) String phone,
+            @RequestParam @NotBlank(message = "学号不能为空") @Size(max = 64) String studentId,
+            @RequestParam @NotBlank(message = "联系方式不能为空") @Size(max = 32) String phone,
             @RequestParam(required = false) @Size(max = 64) String direction,
             @RequestParam(required = false) @Size(max = 2000) String intro,
             @RequestPart("resume") MultipartFile resume) throws IOException {

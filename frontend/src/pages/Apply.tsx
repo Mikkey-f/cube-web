@@ -98,7 +98,7 @@ export default function Apply() {
     <div className="form-page">
       <div className="form-card wide">
         <h2>招新 <span className="title-glow">报名</span></h2>
-        <p className="form-sub">招新对象：计算机类相关专业大一新生，零基础即可报名。每个账号限提交一次，请认真填写</p>
+        <p className="form-sub">招新对象：计算机类相关专业大一新生，零基础也可以报名。每个账号限提交一次，请认真填写</p>
         {error && <div className="form-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -107,14 +107,14 @@ export default function Apply() {
               placeholder="真实姓名" required maxLength={64} />
           </div>
           <div className="field">
-            <label>学号</label>
+            <label>学号<span className="required">*</span></label>
             <input value={studentId} onChange={(e) => setStudentId(e.target.value)}
-              placeholder="选填" maxLength={64} />
+              placeholder="请输入学号" required maxLength={64} />
           </div>
           <div className="field">
-            <label>联系方式</label>
+            <label>联系方式<span className="required">*</span></label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)}
-              placeholder="手机号或 QQ，选填" maxLength={32} />
+              placeholder="请输入QQ号" required maxLength={32} />
           </div>
           <div className="field">
             <label>自我介绍</label>
