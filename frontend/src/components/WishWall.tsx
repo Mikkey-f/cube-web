@@ -15,18 +15,15 @@ interface Wish {
   content: string
 }
 
-/** 还没有审核通过的留言时的占位条目，避免墙面空着 */
+/**
+ * 演示弹幕池：还没有审核通过的留言时占位用，避免墙面空着。
+ * 只留 3 条（培养体系 / 理念 / 入门），后续换成真人留言时直接替换这里的文案即可；
+ * 数量少也要能撑满三行，靠下面的「循环补齐」逻辑，不需要在这里复制多份。
+ */
 const PLACEHOLDER: Wish[] = [
   { id: -1, nickname: '大四学长', content: '大四统筹、大三监管、大二执行、大一深耕' },
-  { id: -2, nickname: '大二组长', content: '每天一道算法题，做完就提交' },
-  { id: -3, nickname: 'CUBE', content: '一切进仓库，让四年的产出可被看见' },
-  { id: -4, nickname: '学姐', content: 'project 才是课，看视频只是准备' },
-  { id: -5, nickname: '学长', content: '从 C 语言开始，零基础也能跟上' },
-  { id: -6, nickname: 'CUBE', content: '每周一次周会，人人汇报' },
-  { id: -7, nickname: '大二组长', content: '帮助学弟解决问题，而不是替他解决问题' },
-  { id: -8, nickname: '学长', content: '绩点是保研的入场券，任何一门课都不能挂' },
-  { id: -9, nickname: 'CUBE', content: 'GitHub 提交记录，就是你最好的履历' },
-  { id: -10, nickname: '学姐', content: '考试周可以调任务，但别长期停滞' }
+  { id: -2, nickname: 'CUBE', content: '一切进仓库，让四年的产出可被看见' },
+  { id: -3, nickname: '学姐', content: 'project 才是课，看视频只是准备' }
 ]
 
 /**
@@ -82,12 +79,28 @@ export default function WishWall() {
     }
   }
 
-  // 真实留言优先，不足 10 条用演示弹幕补齐（去重：避免同屏出现两条一模一样）
-  const MIN_ITEMS = 10
-  const shown = wishes.length >= MIN_ITEMS
-    ? wishes
-    : [...wishes, ...PLACEHOLDER.filter((p) => !wishes.some((w) => w.content === p.content)).slice(0, MIN_ITEMS - wishes.length)]
+  /* ---------- 分配弹幕：真实留言优先，不足时用演示池循环补齐 ---------- */
+  const ROWS = 3
+  // 每行至少 4 条：轨道位移一整段 seg 后，右侧还剩 2×seg 的内容，
+  // 所以只要 2×seg ≥ 行宽就不会露空档；4 条（约 1400px/段）能覆盖到 2800px 的屏宽。
+  const MIN_PER_ROW = 4
+  const MIN_ITEMS = ROWS * MIN_PER_ROW
   const real = wishes.length > 0
+  // 去重：真实留言里已经有的内容，演示池里就不再出现
+  const pool = PLACEHOLDER.filter((p) => !wishes.some((w) => w.content === p.content))
+
+  // 真实留言按顺序轮流落行，保证三行都有内容
+  const rows: Wish[][] = Array.from({ length: ROWS }, () => [])
+  wishes.forEach((w, i) => rows[i % ROWS].push(w))
+  // 演示池只有 3 条：每行从不同起点循环取，三行内容自然错开（不会三行同时出现同一句），
+  // 同时把每行补到 MIN_PER_ROW 条，跑马灯才不会露出空白
+  if (wishes.length < MIN_ITEMS && pool.length > 0) {
+    rows.forEach((row, r) => {
+      for (let k = r; row.length < MIN_PER_ROW; k++) {
+        row.push(pool[k % pool.length])
+      }
+    })
+  }
 
   return (
     <section className="wish-section" id="wishes">
@@ -129,12 +142,14 @@ export default function WishWall() {
         </Reveal>
       </div>
 
-      {/* 三行弹幕：内容拆三段、错位反向、不同速度交错滚动（各自复制一份无缝衔接） */}
+      {/* 三行弹幕：内容拆三段、错位反向、不同速度交错滚动（各自复制 3 份无缝衔接） */}
       <Reveal delay={0.1}>
         <div className="wish-marquee" aria-hidden={wishes.length === 0}>
-          {[0, 1, 2].map((row) => {
-            const seg = shown.filter((_, i) => i % 3 === row)
-            const list = [...seg, ...seg]
+          {rows.map((seg, row) => {
+            // 复制 3 份、位移 -33.333%（见 index.css 的 wish-scroll）：
+            // 位移一整个 seg 就回到起点，所以滚动速度与「复制 2 份 + -50%」完全一致，
+            // 但循环末尾轨道还剩 2×seg 的内容在右侧，宽屏（直到 2×seg）都不会露出空档。
+            const list = [...seg, ...seg, ...seg]
             return (
               <div className={`wish-row wish-row-${row}`} key={row}>
                 <div className="wish-track" style={reduce ? { animation: 'none' } : undefined}>
