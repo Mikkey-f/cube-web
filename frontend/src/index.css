@@ -2369,7 +2369,8 @@ table.data-table {
 
 .player-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  /* 左右等宽：右栏 CD 宽度 = 左栏歌词栏宽度 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 48px;
   min-height: 360px;
@@ -2543,10 +2544,10 @@ table.data-table {
   min-width: 0;
 }
 
-/* 大黑胶：外圈轨道 + 唱片本体 */
+/* 大黑胶：外圈轨道 + 唱片本体（宽度 = 右栏/左栏等宽，纵向用 56vh 兜底防溢出） */
 .vinyl-cd {
   position: relative;
-  width: min(340px, 30vw);
+  width: min(100%, 56vh);
   aspect-ratio: 1;
   flex: none;
   cursor: pointer;
